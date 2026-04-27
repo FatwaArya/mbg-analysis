@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+venv/
+.venv/
+
+# Environment secrets
+.env
+
+# Large/raw datasets
+final_parent_x_posts_mbg.csv
+data/processed/*.csv
+data/processed/haiku_batch_id.txt
