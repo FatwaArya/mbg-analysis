@@ -1,35 +1,59 @@
 import streamlit as st
 import pandas as pd
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from auth import require_auth
 
-st.title("Tweet Explorer")
+st.set_page_config(page_title="Explorer · MBG", page_icon="🔍", layout="wide")
+require_auth()
+
+DATA = "/opt/mbg/data"
+
+st.title("🔍 Tweet Explorer")
+st.caption("Filter and browse individual tweets in the corpus.")
+st.markdown("---")
 
 @st.cache_data
-def load_data():
-    df = pd.read_csv("data/processed/tweets_with_topics.csv")
-    df["date"] = pd.to_datetime(df["date"])
-    return df
+def load():
+    for path in [f"{DATA}/processed/tweets_with_topics.csv",
+                 f"{DATA}/processed/tweets_with_sentiment.csv"]:
+        try:
+            df = pd.read_csv(path, parse_dates=["date"])
+            return df
+        except Exception:
+            continue
+    return None
 
-df = load_data()
+df = load()
+if df is None:
+    st.warning("No data available yet.")
+    st.stop()
 
-c1, c2, c3 = st.columns(3)
-with c1:
-    sent_filter = st.multiselect("Sentiment",
-                                  ["positive", "negative", "neutral"],
-                                  default=["positive", "negative", "neutral"])
-with c2:
-    lang_filter = st.multiselect("Language",
-                                  df["detected_lang"].unique().tolist(), default=["id"])
-with c3:
-    date_range = st.date_input("Date range", [df["date"].min(), df["date"].max()])
+# ── Filters ───────────────────────────────────────────────────────────────────
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    sentiments = df["sentiment_normalized"].unique().tolist() if "sentiment_normalized" in df.columns else []
+    sent_filter = st.multiselect("Sentiment", sentiments, default=sentiments)
+with col2:
+    langs = sorted(df["detected_lang"].unique().tolist())
+    lang_filter = st.multiselect("Language", langs, default=["id"])
+with col3:
+    min_eng = st.number_input("Min engagement", min_value=0, value=0, step=10)
+with col4:
+    dates = st.date_input("Date range", [df["date"].min(), df["date"].max()])
 
-filtered = df[
-    (df["sentiment_normalized"].isin(sent_filter)) &
-    (df["detected_lang"].isin(lang_filter)) &
-    (df["date"] >= pd.Timestamp(date_range[0])) &
-    (df["date"] <= pd.Timestamp(date_range[1]))
-]
+# ── Apply filters ─────────────────────────────────────────────────────────────
+mask = df["detected_lang"].isin(lang_filter) & (df["engagement_total"] >= min_eng)
+if sentiments and sent_filter:
+    mask &= df["sentiment_normalized"].isin(sent_filter)
+if len(dates) == 2:
+    mask &= (df["date"] >= pd.Timestamp(dates[0])) & (df["date"] <= pd.Timestamp(dates[1]))
 
-st.caption(f"Showing {len(filtered):,} tweets")
-st.dataframe(filtered[["text", "sentiment_normalized", "topic_id",
-                        "engagement_total", "date", "detected_lang"]]
-             .sort_values("engagement_total", ascending=False), use_container_width=True)
+filtered = df[mask].sort_values("engagement_total", ascending=False)
+
+st.markdown(f"**{len(filtered):,}** tweets match your filters")
+
+show_cols = ["text", "sentiment_normalized", "engagement_total",
+             "favorite_count", "retweet_count", "reply_count", "date", "detected_lang"]
+show_cols = [c for c in show_cols if c in filtered.columns]
+st.dataframe(filtered[show_cols], use_container_width=True, hide_index=True)
