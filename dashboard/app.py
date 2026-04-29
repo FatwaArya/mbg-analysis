@@ -51,7 +51,7 @@ for s, color in COLORS.items():
     if s in monthly_pct.columns:
         fig.add_trace(go.Scatter(x=monthly_pct.index, y=monthly_pct[s],
             name=s.capitalize(), line=dict(color=color, width=2.5),
-            fill="tozeroy", fillcolor=color.replace(")", ",0.08)").replace("rgb","rgba") if "rgb" in color else color+"22",
+            fill="tozeroy", fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.08)",
             hovertemplate="%{y:.1f}%"))
 fig.update_layout(hovermode="x unified", yaxis_title="% of monthly tweets",
                   legend_title="Sentiment", height=320, margin=dict(t=10,b=10))
