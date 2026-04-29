@@ -20,3 +20,9 @@ venv/
 final_parent_x_posts_mbg.csv
 data/processed/*.csv
 data/processed/haiku_batch_id.txt
+
+# Streamlit secrets
+dashboard/.streamlit/secrets.toml
+
+# Analysis outputs
+data/analysis/
