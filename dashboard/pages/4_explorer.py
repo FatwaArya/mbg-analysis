@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from auth import require_auth
@@ -8,52 +9,83 @@ st.set_page_config(page_title="Explorer · MBG", page_icon="🔍", layout="wide"
 require_auth()
 
 DATA = "/opt/mbg/data"
+COLORS = {"negative":"#e74c3c","neutral":"#95a5a6","positive":"#2ecc71"}
 
 st.title("🔍 Tweet Explorer")
-st.caption("Filter and browse individual tweets in the corpus.")
+st.caption("Filter, search, and browse all 107,375 tweets in the corpus")
 st.markdown("---")
 
 @st.cache_data
 def load():
-    for path in [f"{DATA}/processed/tweets_with_topics.csv",
-                 f"{DATA}/processed/tweets_with_sentiment.csv"]:
+    for p in [f"{DATA}/processed/tweets_with_topics.csv",
+              f"{DATA}/processed/tweets_with_sentiment.csv"]:
         try:
-            df = pd.read_csv(path, parse_dates=["date"])
-            return df
+            return pd.read_csv(p, parse_dates=["date"])
         except Exception:
             continue
     return None
 
 df = load()
 if df is None:
-    st.warning("No data available yet.")
+    st.warning("No data available.")
     st.stop()
 
 # ── Filters ───────────────────────────────────────────────────────────────────
-col1, col2, col3, col4 = st.columns(4)
+col1,col2,col3,col4,col5 = st.columns(5)
 with col1:
-    sentiments = df["sentiment_normalized"].unique().tolist() if "sentiment_normalized" in df.columns else []
-    sent_filter = st.multiselect("Sentiment", sentiments, default=sentiments)
+    sent_opts = sorted(df["sentiment_normalized"].unique().tolist())
+    sent_filter = st.multiselect("Sentiment", sent_opts, default=sent_opts)
 with col2:
-    langs = sorted(df["detected_lang"].unique().tolist())
-    lang_filter = st.multiselect("Language", langs, default=["id"])
+    lang_opts = sorted(df["detected_lang"].unique().tolist())
+    lang_filter = st.multiselect("Language", lang_opts, default=["id"])
 with col3:
-    min_eng = st.number_input("Min engagement", min_value=0, value=0, step=10)
+    min_eng = st.number_input("Min engagement", min_value=0, value=0, step=100)
 with col4:
-    dates = st.date_input("Date range", [df["date"].min(), df["date"].max()])
+    query_opts = ["All"] + sorted(df["query_raw"].unique().tolist())
+    query_filter = st.selectbox("Query", query_opts)
+with col5:
+    keyword = st.text_input("Keyword search", placeholder="e.g. keracunan")
 
-# ── Apply filters ─────────────────────────────────────────────────────────────
-mask = df["detected_lang"].isin(lang_filter) & (df["engagement_total"] >= min_eng)
-if sentiments and sent_filter:
-    mask &= df["sentiment_normalized"].isin(sent_filter)
+dates = st.date_input("Date range", [df["date"].min(), df["date"].max()])
+
+# ── Apply ─────────────────────────────────────────────────────────────────────
+mask = (df["sentiment_normalized"].isin(sent_filter) &
+        df["detected_lang"].isin(lang_filter) &
+        (df["engagement_total"] >= min_eng))
+if query_filter != "All":
+    mask &= df["query_raw"] == query_filter
+if keyword:
+    mask &= df["text"].str.contains(keyword, case=False, na=False)
 if len(dates) == 2:
     mask &= (df["date"] >= pd.Timestamp(dates[0])) & (df["date"] <= pd.Timestamp(dates[1]))
 
 filtered = df[mask].sort_values("engagement_total", ascending=False)
 
-st.markdown(f"**{len(filtered):,}** tweets match your filters")
+# ── Summary of filtered set ───────────────────────────────────────────────────
+st.markdown(f"**{len(filtered):,} tweets** match your filters")
+if len(filtered):
+    c1,c2,c3,c4 = st.columns(4)
+    dist = filtered["sentiment_normalized"].value_counts(normalize=True)*100
+    c1.metric("😠 Negative", f"{dist.get('negative',0):.1f}%")
+    c2.metric("😐 Neutral",  f"{dist.get('neutral',0):.1f}%")
+    c3.metric("😊 Positive", f"{dist.get('positive',0):.1f}%")
+    c4.metric("Avg Engagement", f"{filtered['engagement_total'].mean():.0f}")
 
-show_cols = ["text", "sentiment_normalized", "engagement_total",
-             "favorite_count", "retweet_count", "reply_count", "date", "detected_lang"]
+    # Mini sentiment chart for filtered set
+    if len(filtered) > 10:
+        daily_f = filtered.groupby(["date","sentiment_normalized"]).size().unstack(fill_value=0)
+        daily_pct = daily_f.div(daily_f.sum(axis=1),axis=0)*100
+        fig = px.area(daily_pct.reset_index().melt(id_vars="date"),
+                      x="date", y="value", color="sentiment_normalized",
+                      color_discrete_map=COLORS,
+                      labels={"value":"%","sentiment_normalized":""},
+                      height=200)
+        fig.update_layout(margin=dict(t=5,b=5), hovermode="x unified")
+        st.plotly_chart(fig, use_container_width=True)
+
+st.markdown("---")
+
+show_cols = ["text","sentiment_normalized","sentiment_score","engagement_total",
+             "favorite_count","retweet_count","reply_count","date","detected_lang","query_raw"]
 show_cols = [c for c in show_cols if c in filtered.columns]
 st.dataframe(filtered[show_cols], use_container_width=True, hide_index=True)
