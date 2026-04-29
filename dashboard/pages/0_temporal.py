@@ -53,11 +53,12 @@ with tab1:
     monthly_sent = df.groupby(["month", "sentiment_normalized"]).size().unstack(fill_value=0)
     mp = monthly_sent.div(monthly_sent.sum(axis=1), axis=0) * 100
     fig = go.Figure()
+    FILL = {"negative": "rgba(231,76,60,0.6)", "neutral": "rgba(149,165,166,0.6)", "positive": "rgba(46,204,113,0.6)"}
     for s, color in COLORS.items():
         if s in mp.columns:
             fig.add_trace(go.Scatter(x=mp.index, y=mp[s], name=s.capitalize(),
                 stackgroup="one", line=dict(color=color),
-                fillcolor=color + "99", hovertemplate="%{y:.1f}%"))
+                fillcolor=FILL[s], hovertemplate="%{y:.1f}%"))
     fig.add_hline(y=50, line_dash="dot", line_color="white", opacity=0.4,
                   annotation_text="50%", annotation_font_color="white")
     fig.update_layout(yaxis_title="% of monthly tweets", hovermode="x unified",
