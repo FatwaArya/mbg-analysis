@@ -28,6 +28,15 @@ log "✓ Caches cleared"
 
 # Step 1: Inference (always run)
 log "Step 1: Running inference..."
+
+# Check if model exists, download if missing
+if [ ! -f "model/config.json" ]; then
+    log "Model not found locally, downloading from Spaces..."
+    mkdir -p model
+    s3cmd get --recursive s3://mbg-scraper-network-20260419071440/models/mbg-indobert-finetuned/ model/ 2>&1 | tee -a "$PIPELINE_LOG"
+    log "✓ Model downloaded (475MB)"
+fi
+
 python3 inference.py 2>&1 | tee -a "$PIPELINE_LOG"
 log "✓ Inference complete"
 
