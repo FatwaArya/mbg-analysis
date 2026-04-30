@@ -17,10 +17,9 @@ sent_time_pct.to_csv("data/analysis/sentiment_over_time.csv")
 print("\n2. Sentiment over time saved")
 
 # 3. Weekly sentiment
-weekly = (df.groupby([df["date"].dt.to_period("W"), "sentiment_normalized"])
+weekly = (df.groupby([df["date"].dt.to_period("W").astype(str), "sentiment_normalized"])
             .size().unstack(fill_value=0))
 weekly = weekly.div(weekly.sum(axis=1), axis=0) * 100
-weekly.index = weekly.index.to_timestamp()
 weekly.to_csv("data/analysis/sentiment_weekly.csv")
 print("3. Weekly sentiment saved")
 
