@@ -5,13 +5,13 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from auth import require_auth
 
-st.set_page_config(page_title="Explorer · MBG", page_icon="🔍", layout="wide")
+st.set_page_config(page_title="Explorer  MBG", page_icon=None, layout="wide")
 require_auth()
 
 DATA = "/opt/mbg/data"
 COLORS = {"negative":"#e74c3c","neutral":"#95a5a6","positive":"#2ecc71"}
 
-st.title("🔍 Tweet Explorer")
+st.title("Tweet Explorer")
 st.caption("Filter, search, and browse all 107,375 tweets in the corpus")
 st.markdown("---")
 
@@ -30,7 +30,7 @@ if df is None:
     st.warning("No data available.")
     st.stop()
 
-# ── Filters ───────────────────────────────────────────────────────────────────
+#  Filters 
 col1,col2,col3,col4,col5 = st.columns(5)
 with col1:
     sent_opts = sorted(df["sentiment_normalized"].unique().tolist())
@@ -46,7 +46,7 @@ with col4:
         try:
             ti = pd.read_csv(f"{DATA}/processed/topic_info.csv")
             valid_t = ti[ti["Topic"] != -1]
-            topic_opts += [f"{r['Topic']} — {r['Name'][:35]}" for _, r in valid_t.nlargest(20,"Count").iterrows()]
+            topic_opts += [f"{r['Topic']}  {r['Name'][:35]}" for _, r in valid_t.nlargest(20,"Count").iterrows()]
         except Exception:
             pass
     topic_filter = st.selectbox("Topic", topic_opts)
@@ -55,12 +55,12 @@ with col5:
 
 dates = st.date_input("Date range", [df["date"].min(), df["date"].max()])
 
-# ── Apply ─────────────────────────────────────────────────────────────────────
+#  Apply 
 mask = (df["sentiment_normalized"].isin(sent_filter) &
         df["detected_lang"].isin(lang_filter) &
         (df["engagement_total"] >= min_eng))
 if topic_filter != "All" and "topic_id" in df.columns:
-    tid = int(topic_filter.split(" — ")[0])
+    tid = int(topic_filter.split("  ")[0])
     mask &= df["topic_id"] == tid
 if keyword:
     mask &= df["text"].str.contains(keyword, case=False, na=False)
@@ -69,14 +69,14 @@ if len(dates) == 2:
 
 filtered = df[mask].sort_values("engagement_total", ascending=False)
 
-# ── Summary of filtered set ───────────────────────────────────────────────────
+#  Summary of filtered set 
 st.markdown(f"**{len(filtered):,} tweets** match your filters")
 if len(filtered):
     c1,c2,c3,c4 = st.columns(4)
     dist = filtered["sentiment_normalized"].value_counts(normalize=True)*100
-    c1.metric("😠 Negative", f"{dist.get('negative',0):.1f}%")
-    c2.metric("😐 Neutral",  f"{dist.get('neutral',0):.1f}%")
-    c3.metric("😊 Positive", f"{dist.get('positive',0):.1f}%")
+    c1.metric("Negative", f"{dist.get('negative',0):.1f}%")
+    c2.metric("Neutral",  f"{dist.get('neutral',0):.1f}%")
+    c3.metric("Positive", f"{dist.get('positive',0):.1f}%")
     c4.metric("Avg Engagement", f"{filtered['engagement_total'].mean():.0f}")
 
     # Mini sentiment chart for filtered set

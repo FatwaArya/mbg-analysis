@@ -7,14 +7,14 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from auth import require_auth
 
-st.set_page_config(page_title="Temporal · MBG", page_icon="📅", layout="wide")
+st.set_page_config(page_title="Temporal  MBG", page_icon=None, layout="wide")
 require_auth()
 
 DATA = "/opt/mbg/data"
 COLORS = {"negative": "#e74c3c", "neutral": "#95a5a6", "positive": "#2ecc71"}
 
-st.title("📅 Temporal Analysis")
-st.caption("How discourse evolved over time — volume, sentiment shifts, weekly rhythms, and trend direction")
+st.title("Temporal Analysis")
+st.caption("How discourse evolved over time  volume, sentiment shifts, weekly rhythms, and trend direction")
 st.markdown("---")
 
 @st.cache_data
@@ -29,14 +29,14 @@ def load():
 
 df = load()
 
-# ── KPIs ──────────────────────────────────────────────────────────────────────
+#  KPIs 
 daily = df.groupby("date").size().reset_index(name="count")
 busiest = daily.loc[daily["count"].idxmax()]
 monthly_vol = df.groupby("month").size()
 busiest_month = monthly_vol.idxmax()
 
 c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Date Range", f"{df['date'].min().strftime('%b %Y')} – {df['date'].max().strftime('%b %Y')}")
+c1.metric("Date Range", f"{df['date'].min().strftime('%b %Y')}  {df['date'].max().strftime('%b %Y')}")
 c2.metric("Busiest Day", str(busiest["date"].date()), f"{int(busiest['count']):,} tweets")
 c3.metric("Busiest Month", busiest_month.strftime("%b %Y"), f"{int(monthly_vol.max()):,} tweets")
 c4.metric("Avg Tweets/Day", f"{daily['count'].mean():.0f}")
@@ -44,8 +44,8 @@ c5.metric("Days with Data", f"{len(daily):,}")
 
 st.markdown("---")
 
-# ── 1. Volume + sentiment stacked area ───────────────────────────────────────
-st.markdown("### 📈 Volume & Sentiment Over Time")
+#  1. Volume + sentiment stacked area 
+st.markdown("### Volume and Sentiment Over Time")
 
 tab1, tab2, tab3 = st.tabs(["Monthly", "Weekly", "Daily (last 6 months)"])
 
@@ -94,8 +94,8 @@ with tab3:
 
 st.markdown("---")
 
-# ── 2. Trend direction (linear regression) ───────────────────────────────────
-st.markdown("### 📉 Negativity Trend — Is It Getting Worse?")
+#  2. Trend direction (linear regression) 
+st.markdown("### Negativity Trend")
 
 monthly_neg = df.groupby("month").apply(
     lambda x: (x["sentiment_normalized"] == "negative").mean() * 100
@@ -121,14 +121,14 @@ with col1:
     st.plotly_chart(fig4, use_container_width=True)
 
 with col2:
-    direction = "📈 INCREASING" if slope > 0 else "📉 DECREASING"
+    direction = " INCREASING" if slope > 0 else " DECREASING"
     st.markdown(f"**Trend Direction:** {direction}")
     st.metric("Slope", f"{slope:+.2f} pp/month",
               help="Percentage points change per month")
-    st.metric("R² (fit quality)", f"{r**2:.3f}")
+    st.metric("R (fit quality)", f"{r**2:.3f}")
     st.metric("p-value", f"{p:.4f}", help="< 0.05 = statistically significant")
     if p < 0.05:
-        st.error("Trend is **statistically significant** — this is not random noise.")
+        st.error("Trend is **statistically significant**  this is not random noise.")
     else:
         st.info("Trend is not statistically significant.")
     months_to_60 = (60 - monthly_neg["pct_negative"].iloc[-1]) / slope if slope > 0 else None
@@ -137,8 +137,8 @@ with col2:
 
 st.markdown("---")
 
-# ── 3. Day of week + hour heatmap ─────────────────────────────────────────────
-st.markdown("### 🗓️ When Do People Tweet About MBG?")
+#  3. Day of week + hour heatmap 
+st.markdown("### Posting Patterns")
 
 col3, col4 = st.columns(2)
 with col3:
@@ -154,7 +154,7 @@ with col3:
 
 with col4:
     st.markdown("#### By Hour (WIB)")
-    st.caption("Peak at 6am — morning school news reaction")
+    st.caption("Peak at 6am  morning school news reaction")
     hourly = df.groupby("hour_wib").size().reset_index(name="count")
     fig6 = px.bar(hourly, x="hour_wib", y="count", color="count",
                   color_continuous_scale="Reds",
@@ -174,8 +174,8 @@ st.plotly_chart(fig7, use_container_width=True)
 
 st.markdown("---")
 
-# ── 4. Cumulative negativity ──────────────────────────────────────────────────
-st.markdown("### 📊 Cumulative Sentiment Share Over Time")
+#  4. Cumulative negativity 
+st.markdown("### Cumulative Sentiment Share Over Time")
 st.caption("Shows how the overall balance has shifted as more tweets accumulated")
 
 df_sorted = df.sort_values("date").reset_index(drop=True)
@@ -198,8 +198,8 @@ st.plotly_chart(fig8, use_container_width=True)
 
 st.markdown("---")
 
-# ── 5. Month-over-month change ────────────────────────────────────────────────
-st.markdown("### 📆 Month-over-Month Sentiment Change")
+#  5. Month-over-month change 
+st.markdown("### Month-over-Month Sentiment Change")
 
 mom = monthly_neg.copy()
 mom["prev"] = mom["pct_negative"].shift(1)

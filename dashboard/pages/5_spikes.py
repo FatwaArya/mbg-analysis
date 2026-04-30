@@ -6,14 +6,14 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from auth import require_auth
 
-st.set_page_config(page_title="Spikes · MBG", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Spikes  MBG", page_icon=None, layout="wide")
 require_auth()
 
 DATA = "/opt/mbg/data"
 COLORS = {"negative":"#e74c3c","neutral":"#95a5a6","positive":"#2ecc71"}
 
-st.title("⚡ Temporal Spike Analysis")
-st.caption("When did discourse explode — and what drove it?")
+st.title("Temporal Spike Analysis")
+st.caption("When did discourse explode  and what drove it?")
 st.markdown("---")
 
 @st.cache_data
@@ -47,7 +47,7 @@ if len(spikes):
 
 st.markdown("---")
 
-# ── Main volume chart ─────────────────────────────────────────────────────────
+#  Main volume chart 
 st.markdown("#### Daily Tweet Volume with Spike Detection (z-score > 2)")
 fig = go.Figure()
 fig.add_trace(go.Scatter(x=daily["date"], y=daily["tweet_count"],
@@ -56,7 +56,7 @@ fig.add_trace(go.Scatter(x=daily["date"], y=daily["tweet_count"],
 fig.add_trace(go.Scatter(x=daily["date"], y=daily["roll_mean"],
     name="7-day avg", line=dict(color="#f39c12", dash="dash", width=2)))
 fig.add_trace(go.Scatter(x=spikes["date"], y=spikes["tweet_count"],
-    mode="markers", name="⚡ Spike",
+    mode="markers", name="Spike",
     marker=dict(color="#e74c3c", size=14, symbol="star"),
     text=spikes["date"].dt.strftime("%b %d %Y"),
     hovertemplate="<b>%{text}</b><br>%{y} tweets<extra></extra>"))
@@ -66,7 +66,7 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 
-# ── Spike table + sentiment on spike days ─────────────────────────────────────
+#  Spike table + sentiment on spike days 
 col1, col2 = st.columns(2)
 with col1:
     st.markdown("#### Spike Days Detail")
@@ -92,7 +92,7 @@ with col2:
 
 st.markdown("---")
 
-# ── What drove spikes ─────────────────────────────────────────────────────────
+#  What drove spikes 
 st.markdown("#### What Topics Drove Spike Days?")
 spike_tweets = df[df["is_spike_day"]]
 col3, col4 = st.columns(2)
@@ -114,7 +114,7 @@ with col4:
 
 st.markdown("---")
 
-# ── Negativity over time with spike markers ───────────────────────────────────
+#  Negativity over time with spike markers 
 st.markdown("#### Daily Negativity % with Spike Markers")
 fig4 = go.Figure()
 fig4.add_trace(go.Scatter(x=daily["date"], y=daily["pct_negative"].rolling(7).mean(),

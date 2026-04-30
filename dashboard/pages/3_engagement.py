@@ -6,13 +6,13 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from auth import require_auth
 
-st.set_page_config(page_title="Engagement · MBG", page_icon="💬", layout="wide")
+st.set_page_config(page_title="Engagement  MBG", page_icon=None, layout="wide")
 require_auth()
 
 DATA = "/opt/mbg/data"
 COLORS = {"negative":"#e74c3c","neutral":"#95a5a6","positive":"#2ecc71"}
 
-st.title("💬 Engagement & Virality")
+st.title("Engagement and Virality")
 st.caption("What content spreads, when people post, and which topics drive the most interaction")
 st.markdown("---")
 
@@ -35,7 +35,7 @@ c5.metric("Max Engagement", f"{df['engagement_total'].max():,}")
 
 st.markdown("---")
 
-# ── Row 1: volume + hourly ────────────────────────────────────────────────────
+#  Row 1: volume + hourly 
 col1, col2 = st.columns(2)
 with col1:
     st.markdown("#### Daily Tweet Volume")
@@ -46,7 +46,7 @@ with col1:
 
 with col2:
     st.markdown("#### Posting by Hour (WIB)")
-    st.caption("Peak at 6am WIB — people react to morning school meal news")
+    st.caption("Peak at 6am WIB  people react to morning school meal news")
     hourly = df.groupby("hour_wib").size().reset_index(name="count")
     fig2 = px.bar(hourly, x="hour_wib", y="count", color="count",
                   color_continuous_scale="Blues",
@@ -56,8 +56,8 @@ with col2:
 
 st.markdown("---")
 
-# ── Row 2: query effectiveness ────────────────────────────────────────────────
-st.markdown("#### Query Effectiveness — Volume, Negativity & Engagement")
+#  Row 2: query effectiveness 
+st.markdown("#### Query Effectiveness  Volume, Negativity & Engagement")
 st.caption("The food poisoning query has 70.8% negative sentiment. The gimmick/fake promise query: 85.9% negative.")
 
 qe = df.groupby("query_raw").agg(
@@ -67,7 +67,7 @@ qe = df.groupby("query_raw").agg(
     pct_pos=("sentiment_normalized", lambda x: (x=="positive").mean()*100),
     avg_rt=("retweet_count","mean"),
 ).round(1).reset_index()
-qe["query_short"] = qe["query_raw"].str[:55] + "…"
+qe["query_short"] = qe["query_raw"].str[:55] + ""
 qe = qe.sort_values("total", ascending=False)
 
 fig3 = go.Figure()
@@ -90,7 +90,7 @@ st.dataframe(qe[["query_short","total","avg_eng","pct_neg","pct_pos","avg_rt"]].
 
 st.markdown("---")
 
-# ── Row 3: scrape tab + engagement distribution ───────────────────────────────
+#  Row 3: scrape tab + engagement distribution 
 col3, col4 = st.columns(2)
 with col3:
     st.markdown("#### Top vs Latest Tab Comparison")
@@ -122,8 +122,8 @@ with col4:
 
 st.markdown("---")
 
-# ── Regional analysis ─────────────────────────────────────────────────────────
-st.markdown("#### Regional Sentiment — Java vs Outer Islands")
+#  Regional analysis 
+st.markdown("#### Regional Sentiment  Java vs Outer Islands")
 st.caption("Outer islands (Papua, NTT, Maluku) are 39% positive. Java is only 24% positive.")
 
 regions = {
@@ -154,8 +154,8 @@ with col6:
 
 st.markdown("---")
 
-# ── Top 20 posts ──────────────────────────────────────────────────────────────
-st.markdown("#### 🏆 Top 20 Most Engaging Posts")
+#  Top 20 posts 
+st.markdown("#### Top 20 Most Engaging Posts")
 top = df.nlargest(20,"engagement_total")[
     ["text","sentiment_normalized","engagement_total","favorite_count","retweet_count","reply_count","date"]]
 st.dataframe(top, use_container_width=True, hide_index=True)

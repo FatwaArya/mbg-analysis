@@ -6,14 +6,14 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from auth import require_auth
 
-st.set_page_config(page_title="Sentiment · MBG", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Sentiment  MBG", page_icon=None, layout="wide")
 require_auth()
 
 DATA = "/opt/mbg/data"
 COLORS = {"negative":"#e74c3c","neutral":"#95a5a6","positive":"#2ecc71"}
 
-st.title("📊 Sentiment Analysis")
-st.caption("How does the public feel about MBG — and how is that changing?")
+st.title("Sentiment Analysis")
+st.caption("How does the public feel about MBG  and how is that changing?")
 st.markdown("---")
 
 @st.cache_data
@@ -24,16 +24,16 @@ df = load()
 total = len(df)
 dist = df["sentiment_normalized"].value_counts()
 
-# ── KPIs ──────────────────────────────────────────────────────────────────────
+#  KPIs 
 c1,c2,c3,c4 = st.columns(4)
 c1.metric("Total Tweets", f"{total:,}")
-c2.metric("😠 Negative", f"{dist.get('negative',0)/total*100:.1f}%", f"{dist.get('negative',0):,}")
-c3.metric("😐 Neutral",  f"{dist.get('neutral',0)/total*100:.1f}%",  f"{dist.get('neutral',0):,}")
-c4.metric("😊 Positive", f"{dist.get('positive',0)/total*100:.1f}%", f"{dist.get('positive',0):,}")
+c2.metric("Negative", f"{dist.get('negative',0)/total*100:.1f}%", f"{dist.get('negative',0):,}")
+c3.metric("Neutral",  f"{dist.get('neutral',0)/total*100:.1f}%",  f"{dist.get('neutral',0):,}")
+c4.metric("Positive", f"{dist.get('positive',0)/total*100:.1f}%", f"{dist.get('positive',0):,}")
 
 st.markdown("---")
 
-# ── Row 1: pie + monthly trend ────────────────────────────────────────────────
+#  Row 1: pie + monthly trend 
 col1, col2 = st.columns([1,2])
 with col1:
     st.markdown("#### Overall Distribution")
@@ -45,7 +45,7 @@ with col1:
 
 with col2:
     st.markdown("#### Monthly Sentiment % (7-day smoothed)")
-    st.caption("🔴 Negativity crossed 50% in Feb 2026 and hasn't come back down")
+    st.caption(" Negativity crossed 50% in Feb 2026 and hasn't come back down")
     monthly = df.groupby([df["date"].dt.to_period("M"),"sentiment_normalized"]).size().unstack(fill_value=0)
     mp = monthly.div(monthly.sum(axis=1),axis=0)*100
     mp.index = mp.index.to_timestamp()
@@ -61,7 +61,7 @@ with col2:
 
 st.markdown("---")
 
-# ── Row 2: engagement by sentiment + amplification ────────────────────────────
+#  Row 2: engagement by sentiment + amplification 
 col3, col4 = st.columns(2)
 with col3:
     st.markdown("#### Engagement by Sentiment")
@@ -91,7 +91,7 @@ with col4:
 
 st.markdown("---")
 
-# ── Row 3: sentiment by language + confidence ─────────────────────────────────
+#  Row 3: sentiment by language + confidence 
 col5, col6 = st.columns(2)
 with col5:
     st.markdown("#### Sentiment by Language")
@@ -107,7 +107,7 @@ with col5:
 
 with col6:
     st.markdown("#### Model Confidence by Sentiment")
-    st.caption("Negative labels are most confident (avg 89%) — these findings are reliable")
+    st.caption("Negative labels are most confident (avg 89%)  these findings are reliable")
     fig6 = px.box(df, x="sentiment_normalized", y="sentiment_score",
                   color="sentiment_normalized", color_discrete_map=COLORS,
                   labels={"sentiment_normalized":"Sentiment","sentiment_score":"Confidence Score"})
@@ -116,9 +116,9 @@ with col6:
 
 st.markdown("---")
 
-# ── Row 4: first vs last period comparison ────────────────────────────────────
+#  Row 4: first vs last period comparison 
 st.markdown("#### Sentiment Shift: Early Period vs Recent Period")
-st.caption("Comparing first 10% of corpus vs last 10% — shows the direction of change")
+st.caption("Comparing first 10% of corpus vs last 10%  shows the direction of change")
 df_s = df.sort_values("date")
 n = int(len(df)*0.1)
 early = df_s.head(n)["sentiment_normalized"].value_counts(normalize=True)*100
@@ -138,7 +138,7 @@ with col8:
 
 st.markdown("---")
 
-# ── Sentiment per topic (top 15) ──────────────────────────────────────────────
+#  Sentiment per topic (top 15) 
 st.markdown("#### Sentiment Breakdown by Topic (Top 15 by volume)")
 st.caption("Topic 1 (corruption) and Topic 2 (school/education) are the most negative large topics")
 try:
@@ -163,9 +163,9 @@ except Exception as e:
 
 st.markdown("---")
 
-# ── Top posts by sentiment ────────────────────────────────────────────────────
+#  Top posts by sentiment 
 st.markdown("#### Top Posts by Sentiment")
-tab_neg, tab_pos, tab_neu = st.tabs(["😠 Most Viral Negative", "😊 Most Viral Positive", "😐 Most Viral Neutral"])
+tab_neg, tab_pos, tab_neu = st.tabs(["Most Viral  Negative", "Most Viral  Positive", "Most Viral  Neutral"])
 cols_show = ["text","sentiment_score","engagement_total","favorite_count","retweet_count","reply_count","date"]
 for tab, sent in [(tab_neg,"negative"),(tab_pos,"positive"),(tab_neu,"neutral")]:
     with tab:

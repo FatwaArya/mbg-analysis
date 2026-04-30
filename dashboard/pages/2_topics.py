@@ -5,13 +5,13 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from auth import require_auth
 
-st.set_page_config(page_title="Topics · MBG", page_icon="🗂", layout="wide")
+st.set_page_config(page_title="Topics  MBG", page_icon=None, layout="wide")
 require_auth()
 
 DATA = "/opt/mbg/data"
 COLORS = {"positive": "#2ecc71", "negative": "#e74c3c", "neutral": "#95a5a6"}
 
-st.title("🗂 Topic Analysis")
+st.title("Topic Analysis")
 st.caption("What themes dominate public discourse about MBG?")
 st.markdown("---")
 
@@ -25,7 +25,7 @@ try:
     topic_info, df = load()
     valid = topic_info[topic_info["Topic"] != -1].copy()
 
-    # ── Overview metrics ──────────────────────────────────────────────────────
+    #  Overview metrics 
     outliers = (df["topic_id"] == -1).sum()
     c1, c2, c3 = st.columns(3)
     c1.metric("Topics Discovered", len(valid))
@@ -34,7 +34,7 @@ try:
 
     st.markdown("---")
 
-    # ── Topic table + bar ─────────────────────────────────────────────────────
+    #  Topic table + bar 
     col1, col2 = st.columns([2, 1])
     with col1:
         st.markdown("#### Topic Overview")
@@ -51,7 +51,7 @@ try:
 
     st.markdown("---")
 
-    # ── Topic over time ───────────────────────────────────────────────────────
+    #  Topic over time 
     st.markdown("#### Topic Prevalence Over Time")
     top8_ids = valid.nlargest(8, "Count")["Topic"].tolist()
     topic_time = (df[df["topic_id"].isin(top8_ids)]
@@ -63,7 +63,7 @@ try:
     fig2.update_layout(hovermode="x unified", legend_title="Topic")
     st.plotly_chart(fig2, use_container_width=True)
 
-    # ── Sentiment per topic ───────────────────────────────────────────────────
+    #  Sentiment per topic 
     if "sentiment_normalized" in df.columns:
         st.markdown("---")
         st.markdown("#### Sentiment Breakdown per Topic")
@@ -78,11 +78,11 @@ try:
         fig3.update_layout(margin=dict(t=10, b=10))
         st.plotly_chart(fig3, use_container_width=True)
 
-    # ── Browse by topic ───────────────────────────────────────────────────────
+    #  Browse by topic 
     st.markdown("---")
     st.markdown("#### Browse Tweets by Topic")
     sel = st.selectbox("Select topic", valid["Topic"].tolist(),
-                       format_func=lambda x: f"Topic {x} — {id_to_name.get(x,'')}")
+                       format_func=lambda x: f"Topic {x}  {id_to_name.get(x,'')}")
     subset = df[df["topic_id"] == sel].nlargest(20, "engagement_total")
     cols = ["text", "engagement_total", "date"] + (["sentiment_normalized"] if "sentiment_normalized" in df.columns else [])
     st.dataframe(subset[cols], use_container_width=True, hide_index=True)
