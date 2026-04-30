@@ -25,7 +25,7 @@ weekly = (df.groupby([df["date"].dt.to_period("W").astype(str), "sentiment_norma
             .size().unstack(fill_value=0))
 weekly = weekly.div(weekly.sum(axis=1), axis=0) * 100
 weekly = weekly.reset_index()
-weekly.columns = ["date", "negative", "neutral", "positive"]
+weekly = weekly.melt(id_vars=["date"], var_name="sentiment", value_name="count")
 weekly.to_csv("data/analysis/sentiment_weekly.csv", index=False)
 print("3. Weekly sentiment saved")
 
