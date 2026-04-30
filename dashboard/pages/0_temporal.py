@@ -6,6 +6,7 @@ from scipy import stats
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from auth import require_auth
+from spaces_loader import load_with_fallback
 
 st.set_page_config(page_title="Temporal  MBG", page_icon=None, layout="wide")
 require_auth()
@@ -19,7 +20,11 @@ st.markdown("---")
 
 @st.cache_data
 def load():
-    df = pd.read_csv(f"{DATA}/processed/tweets_with_sentiment.csv", parse_dates=["date"])
+    df, source, run_info = load_with_fallback("tweets_with_sentiment")
+    if df is None:
+        st.error("Failed to load data")
+        st.stop()
+    df["date"] = pd.to_datetime(df["date"])
     df = df[df["date"] >= "2025-01-01"]
     df["hour_wib"] = (df["hour"] + 7) % 24
     df["week"] = df["date"].dt.to_period("W").dt.start_time

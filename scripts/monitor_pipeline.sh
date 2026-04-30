@@ -17,6 +17,35 @@ echo "Time: $(date '+%Y-%m-%d %H:%M:%S')"
 echo "=========================================="
 echo ""
 
+# Check for current run metadata
+if [ -f "data/output/metadata.json" ]; then
+    echo -e "${BLUE}[CURRENT RUN]${NC}"
+    RUN_ID=$(python3 -c "import json; print(json.load(open('data/output/metadata.json'))['run_id'])" 2>/dev/null || echo "unknown")
+    RUN_STATUS=$(python3 -c "import json; print(json.load(open('data/output/metadata.json'))['status'])" 2>/dev/null || echo "unknown")
+    echo -e "  Run ID: ${GREEN}$RUN_ID${NC}"
+    echo -e "  Status: $RUN_STATUS"
+    echo ""
+fi
+
+# Check Spaces upload status
+echo -e "${BLUE}[SPACES STATUS]${NC}"
+if command -v s3cmd &> /dev/null; then
+    LATEST_RUN=$(s3cmd ls s3://mbg-scraper-network-20260419071440/latest_run.json 2>/dev/null | awk '{print $1, $2}')
+    if [ -n "$LATEST_RUN" ]; then
+        echo -e "  ${GREEN}✓${NC} Connected to DigitalOcean Spaces"
+        echo "  Latest manifest: $LATEST_RUN"
+        
+        # Get latest run_id from Spaces
+        SPACES_RUN_ID=$(s3cmd get s3://mbg-scraper-network-20260419071440/latest_run.json - 2>/dev/null | python3 -c "import json, sys; print(json.load(sys.stdin)['run_id'])" 2>/dev/null || echo "unknown")
+        echo "  Latest run in Spaces: $SPACES_RUN_ID"
+    else
+        echo -e "  ${YELLOW}⚠${NC} Cannot connect to Spaces or no runs uploaded"
+    fi
+else
+    echo -e "  ${RED}✗${NC} s3cmd not installed"
+fi
+echo ""
+
 # Check running processes
 echo -e "${BLUE}[PROCESSES]${NC}"
 INFERENCE_PID=$(pgrep -f "python.*inference.py" || echo "")
@@ -24,12 +53,14 @@ SENTIMENT_PID=$(pgrep -f "python.*run_sentiment.py" || echo "")
 TOPICS_PID=$(pgrep -f "python.*run_topics.py" || echo "")
 PREPROCESS_PID=$(pgrep -f "python.*preprocess_text.py" || echo "")
 TAGGING_PID=$(pgrep -f "python.*tag_language.py" || echo "")
+UPLOAD_PID=$(pgrep -f "python.*upload_run.py" || echo "")
 
 [ -n "$INFERENCE_PID" ] && echo -e "  ${GREEN}✓${NC} inference.py running (PID: $INFERENCE_PID)" || echo -e "  ${RED}✗${NC} inference.py not running"
 [ -n "$TAGGING_PID" ] && echo -e "  ${GREEN}✓${NC} tag_language.py running (PID: $TAGGING_PID)" || echo -e "  ${RED}✗${NC} tag_language.py not running"
 [ -n "$PREPROCESS_PID" ] && echo -e "  ${GREEN}✓${NC} preprocess_text.py running (PID: $PREPROCESS_PID)" || echo -e "  ${RED}✗${NC} preprocess_text.py not running"
 [ -n "$SENTIMENT_PID" ] && echo -e "  ${GREEN}✓${NC} run_sentiment.py running (PID: $SENTIMENT_PID)" || echo -e "  ${RED}✗${NC} run_sentiment.py not running"
 [ -n "$TOPICS_PID" ] && echo -e "  ${GREEN}✓${NC} run_topics.py running (PID: $TOPICS_PID)" || echo -e "  ${RED}✗${NC} run_topics.py not running"
+[ -n "$UPLOAD_PID" ] && echo -e "  ${YELLOW}⚠${NC} upload_run.py running (PID: $UPLOAD_PID)" || echo -e "  ${RED}✗${NC} upload_run.py not running"
 echo ""
 
 # Check output files

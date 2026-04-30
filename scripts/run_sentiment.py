@@ -33,23 +33,6 @@ id_df = df[df["detected_lang"] != "en"].copy()
 en_df = df[df["detected_lang"] == "en"].copy()
 log.info(f"Indonesian : {len(id_df):,} | English : {len(en_df):,}")
 
-# Checkpoint setup
-CHECKPOINT_FILE = "/opt/mbg/data/.sentiment_checkpoint.csv"
-CHECKPOINT_EVERY = 1000
-
-# Load checkpoint if exists
-if os.path.exists(CHECKPOINT_FILE):
-    done = pd.read_csv(CHECKPOINT_FILE)
-    done_ids = set(done["id"].astype(str))
-    log.info(f"Resuming from checkpoint: {len(done_ids):,} already processed")
-else:
-    done = pd.DataFrame()
-    done_ids = set()
-
-# Filter to unprocessed only
-remaining = df[~df["id"].astype(str).isin(done_ids)].copy()
-log.info(f"Remaining to process: {len(remaining):,}")
-
 def run_batch(model, texts, batch_size=32):
     results = []
     for i in tqdm(range(0, len(texts), batch_size)):
