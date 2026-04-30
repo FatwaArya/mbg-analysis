@@ -16,6 +16,18 @@ topic_time = df[df["topic_id"] != -1].groupby(["date", "topic_id"]).size().unsta
 topic_time.to_csv("data/analysis/topic_over_time.csv")
 print("Topic over time saved")
 
+# Weekly topic counts
+topic_weekly = df[df["topic_id"] != -1].groupby([df["date"].dt.to_period("W").astype(str), "topic_id"]).size().reset_index(name="count")
+topic_weekly.to_csv("data/analysis/topic_weekly.csv", index=False)
+print("Topic weekly saved")
+
+# Topic prevalence
+topic_prevalence = df[df["topic_id"] != -1]["topic_id"].value_counts().reset_index()
+topic_prevalence.columns = ["Topic", "Count"]
+topic_prevalence = topic_prevalence.merge(topic_info[["Topic", "Name"]], on="Topic", how="left")
+topic_prevalence.to_csv("data/analysis/topic_prevalence.csv", index=False)
+print("Topic prevalence saved")
+
 # Sentiment per topic
 if "sentiment_normalized" in df.columns:
     ts = df[df["topic_id"] != -1].groupby(["topic_id", "sentiment_normalized"]).size().unstack(fill_value=0)
@@ -31,5 +43,11 @@ te = df[df["topic_id"] != -1].groupby("topic_id").agg(
 ).sort_values("total_engagement", ascending=False)
 te.to_csv("data/analysis/topic_engagement.csv")
 print("Topic engagement saved")
+
+# Top engaging tweets
+top_tweets = df.nlargest(100, "engagement_total")[["text", "date", "sentiment_normalized", "engagement_total"]]
+top_tweets.columns = ["text", "date", "sentiment", "engagement_total"]
+top_tweets.to_csv("data/analysis/top_engaging_tweets.csv", index=False)
+print("Top engaging tweets saved")
 
 print("\n=== TOPIC ANALYSIS COMPLETE ===")

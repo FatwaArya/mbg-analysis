@@ -25,14 +25,14 @@ print(f"   Scrape tabs  : {df['scrape_tab'].value_counts().to_dict()}")
 print()
 
 # 2. TWEET VOLUME OVER TIME
-daily_volume = df.groupby("date").size().reset_index(name="count")
-weekly_volume = df.resample("W", on="date").size().reset_index(name="count")
+daily_volume = df.groupby("date").size().reset_index(name="tweet_count")
+weekly_volume = df.resample("W", on="date").size().reset_index(name="tweet_count")
 daily_volume.to_csv("data/analysis/daily_volume.csv", index=False)
 weekly_volume.to_csv("data/analysis/weekly_volume.csv", index=False)
-peak = daily_volume.loc[daily_volume["count"].idxmax()]
+peak = daily_volume.loc[daily_volume["tweet_count"].idxmax()]
 print(f"2. Peak day    : {peak['date'].date()}")
-print(f"   Peak count  : {peak['count']:,}")
-print(f"   Avg/day     : {daily_volume['count'].mean():.0f}")
+print(f"   Peak count  : {peak['tweet_count']:,}")
+print(f"   Avg/day     : {daily_volume['tweet_count'].mean():.0f}")
 print()
 
 # 3. ENGAGEMENT PATTERNS
@@ -43,9 +43,9 @@ print(f"3. Avg talk/amplify ratio : {df['talk_amplify_ratio'].mean():.3f}")
 print()
 
 # 4. HOURLY POSTING PATTERN
-hourly = df.groupby("hour").size().reset_index(name="count")
+hourly = df.groupby("hour").size().reset_index(name="tweet_count")
 hourly.to_csv("data/analysis/hourly_pattern.csv", index=False)
-print(f"4. Peak hour : {hourly.loc[hourly['count'].idxmax(), 'hour']}:00")
+print(f"4. Peak hour : {hourly.loc[hourly['tweet_count'].idxmax(), 'hour']}:00")
 print()
 
 # 5. QUERY EFFECTIVENESS
