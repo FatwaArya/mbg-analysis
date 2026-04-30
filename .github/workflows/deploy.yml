@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "dashboard/**"
+      - "scripts/**"
 
 jobs:
   deploy:
@@ -12,7 +13,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to VPS
+      - name: Copy dashboard files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "dashboard/,scripts/"
+          target: "/opt/mbg/"
+
+      - name: Set permissions and restart dashboard
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -20,26 +30,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /opt/mbg
-            # Pull latest dashboard files via git (or rsync via scp below)
-            # We use inline file update approach since repo is private
-            echo "Deploy triggered"
-
-      - name: Copy dashboard files to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "dashboard/"
-          target: "/opt/mbg/"
-
-      - name: Restart dashboard service
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
+            chmod +x scripts/*.sh scripts/*.py
             echo 'dashboard_password = "${{ secrets.DASHBOARD_PASSWORD }}"' > /opt/mbg/dashboard/.streamlit/secrets.toml
             systemctl restart mbg-dashboard
             systemctl status mbg-dashboard --no-pager | head -5
