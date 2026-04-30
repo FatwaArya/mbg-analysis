@@ -21,6 +21,13 @@ df["sentiment_model"] = df["detected_lang"].apply(
 )
 
 df.to_csv("data/processed/tweets_relevant_tagged.csv", index=False)
+
+# Write completion signal
+with open("/opt/mbg/data/.tagging_done", "w") as f:
+    f.write(f"completed at {pd.Timestamp.now()}\n")
+    f.write(f"rows tagged: {len(df)}\n")
+print("Completion signal written -> /opt/mbg/data/.tagging_done")
+
 print(f"\nLanguage breakdown:\n{df['detected_lang'].value_counts().to_string()}")
 print(f"\nModel routing:\n{df['sentiment_model'].value_counts().to_string()}")
 print(f"\nSaved -> data/processed/tweets_relevant_tagged.csv")

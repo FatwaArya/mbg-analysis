@@ -2,14 +2,41 @@ import pandas as pd
 from bertopic import BERTopic
 from sentence_transformers import SentenceTransformer
 import os
+import logging
+import numpy as np
+
+# Setup unified logging
+LOG_DIR = "/opt/mbg/logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(f"{LOG_DIR}/run_topics.py.log"),
+        logging.StreamHandler()
+    ]
+)
+log = logging.getLogger(__name__)
 
 os.makedirs("/opt/mbg/data/output", exist_ok=True)
 df = pd.read_csv("/opt/mbg/data/output/tweets_with_sentiment.csv")
 id_df = df[df["detected_lang"] != "en"].copy()
 docs = id_df["text"].str[:512].tolist()
 
-print(f"Topic modeling on {len(docs):,} Indonesian tweets...")
+log.info(f"Topic modeling on {len(docs):,} Indonesian tweets...")
 embed_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+
+# Embedding cache
+EMBEDDINGS_CACHE = "/opt/mbg/data/.topic_embeddings.npy"
+
+if os.path.exists(EMBEDDINGS_CACHE):
+    log.info("Loading cached embeddings...")
+    embeddings = np.load(EMBEDDINGS_CACHE)
+else:
+    log.info("Computing embeddings...")
+    embeddings = embed_model.encode(docs, batch_size=64, show_progress_bar=True)
+    np.save(EMBEDDINGS_CACHE, embeddings)
+    log.info(f"Embeddings cached → {EMBEDDINGS_CACHE}")
 
 topic_model = BERTopic(
     embedding_model=embed_model,
@@ -20,7 +47,7 @@ topic_model = BERTopic(
     min_topic_size=50
 )
 
-topics, probs = topic_model.fit_transform(docs)
+topics, probs = topic_model.fit_transform(docs, embeddings)
 id_df["topic_id"] = topics
 id_df["topic_prob"] = probs.max(axis=1) if hasattr(probs, "max") else probs
 
@@ -29,5 +56,5 @@ topic_info.to_csv("/opt/mbg/data/output/topic_info.csv", index=False)
 id_df.to_csv("/opt/mbg/data/output/tweets_with_topics.csv", index=False)
 topic_model.save("/opt/mbg/data/output/bertopic_model")
 
-print(f"\nTopics found : {topic_info['Topic'].nunique()}")
-print(topic_info.head(15).to_string())
+log.info(f"\nTopics found : {topic_info['Topic'].nunique()}")
+log.info(topic_info.head(15).to_string())
