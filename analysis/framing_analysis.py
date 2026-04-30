@@ -33,7 +33,9 @@ print(pd.DataFrame({"count": dist, "pct": dist_pct}).to_string())
 if "final_label" in ann.columns:
     # use sentiment from tweets_with_sentiment if available
     try:
-        sent = pd.read_csv("data/processed/tweets_with_sentiment.csv")[["id","sentiment_normalized","engagement_total","retweet_count"]]
+        sent = pd.read_csv("data/processed/tweets_with_sentiment.csv", parse_dates=["date"])
+        sent = sent[sent["date"] >= "2025-01-01"]
+        sent = sent[["id","sentiment_normalized","engagement_total","retweet_count"]]
         ann = ann.merge(sent, on="id", how="left")
         frame_sent = ann.groupby(["frame","sentiment_normalized"]).size().unstack(fill_value=0)
         frame_sent_pct = frame_sent.div(frame_sent.sum(axis=1), axis=0) * 100

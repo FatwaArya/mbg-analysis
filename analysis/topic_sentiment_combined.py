@@ -6,6 +6,7 @@ import os
 os.makedirs("data/analysis", exist_ok=True)
 
 df = pd.read_csv("data/processed/tweets_with_topics.csv", parse_dates=["date"])
+df = df[df["date"] >= "2025-01-01"]
 ti = pd.read_csv("data/processed/topic_info.csv")
 valid = ti[ti["Topic"] != -1].copy()
 id_to_name = dict(zip(valid["Topic"], valid["Name"]))

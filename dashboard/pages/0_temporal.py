@@ -20,6 +20,7 @@ st.markdown("---")
 @st.cache_data
 def load():
     df = pd.read_csv(f"{DATA}/processed/tweets_with_sentiment.csv", parse_dates=["date"])
+    df = df[df["date"] >= "2025-01-01"]
     df["hour_wib"] = (df["hour"] + 7) % 24
     df["week"] = df["date"].dt.to_period("W").dt.start_time
     df["month"] = df["date"].dt.to_period("M").dt.to_timestamp()

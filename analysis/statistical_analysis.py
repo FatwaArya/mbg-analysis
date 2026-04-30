@@ -11,6 +11,7 @@ for _p in ["data/processed/tweets_with_topics.csv",
         df = pd.read_csv(_p)
         break
 df["date"] = pd.to_datetime(df["date"])
+df = df[df["date"] >= "2025-01-01"]
 df["created_at"] = pd.to_datetime(df["created_at"])
 
 print("=== STATISTICAL ANALYSIS ===\n")

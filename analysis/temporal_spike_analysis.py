@@ -17,6 +17,7 @@ for path in [
         break
 
 df["date"] = pd.to_datetime(df["date"])
+df = df[df["date"] >= "2025-01-01"]
 
 # ── 1. Daily volume + rolling baseline ───────────────────────────────────────
 daily = df.groupby("date").agg(

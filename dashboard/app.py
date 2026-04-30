@@ -13,7 +13,8 @@ DATA = "/opt/mbg/data"
 
 @st.cache_data
 def load():
-    return pd.read_csv(f"{DATA}/processed/tweets_with_sentiment.csv", parse_dates=["date","created_at"])
+    df = pd.read_csv(f"{DATA}/processed/tweets_with_sentiment.csv", parse_dates=["date","created_at"])
+    return df[df["date"] >= "2025-01-01"]
 
 @st.cache_data
 def load_paper_stats():

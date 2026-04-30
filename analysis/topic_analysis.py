@@ -5,6 +5,7 @@ os.makedirs("data/analysis", exist_ok=True)
 df = pd.read_csv("data/processed/tweets_with_topics.csv")
 topic_info = pd.read_csv("data/processed/topic_info.csv")
 df["date"] = pd.to_datetime(df["date"])
+df = df[df["date"] >= "2025-01-01"]
 valid = topic_info[topic_info["Topic"] != -1]
 
 print(f"Topics discovered : {len(valid)}")

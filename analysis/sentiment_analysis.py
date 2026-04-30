@@ -4,6 +4,7 @@ import os
 os.makedirs("data/analysis", exist_ok=True)
 df = pd.read_csv("data/processed/tweets_with_sentiment.csv")
 df["date"] = pd.to_datetime(df["date"])
+df = df[df["date"] >= "2025-01-01"]
 
 # 1. Overall distribution
 dist = df["sentiment_normalized"].value_counts().reset_index()

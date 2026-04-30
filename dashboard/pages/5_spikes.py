@@ -18,7 +18,8 @@ st.markdown("---")
 
 @st.cache_data
 def load():
-    return pd.read_csv(f"{DATA}/processed/tweets_with_sentiment.csv", parse_dates=["date"])
+    df = pd.read_csv(f"{DATA}/processed/tweets_with_sentiment.csv", parse_dates=["date"])
+    return df[df["date"] >= "2025-01-01"]
 
 df = load()
 

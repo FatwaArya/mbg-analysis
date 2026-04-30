@@ -19,6 +19,7 @@ st.markdown("---")
 def load():
     ti = pd.read_csv(f"{DATA}/processed/topic_info.csv")
     df = pd.read_csv(f"{DATA}/processed/tweets_with_topics.csv", parse_dates=["date"])
+    df = df[df["date"] >= "2025-01-01"]
     return ti, df
 
 try:

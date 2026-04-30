@@ -20,7 +20,8 @@ def load():
     for p in [f"{DATA}/processed/tweets_with_topics.csv",
               f"{DATA}/processed/tweets_with_sentiment.csv"]:
         try:
-            return pd.read_csv(p, parse_dates=["date"])
+            df = pd.read_csv(p, parse_dates=["date"])
+            return df[df["date"] >= "2025-01-01"]
         except Exception:
             continue
     return None

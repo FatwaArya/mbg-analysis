@@ -19,6 +19,7 @@ st.markdown("---")
 @st.cache_data
 def load():
     df = pd.read_csv(f"{DATA}/processed/tweets_with_sentiment.csv", parse_dates=["date"])
+    df = df[df["date"] >= "2025-01-01"]
     df["hour_wib"] = (df["hour"] + 7) % 24
     df["talk_amplify"] = df["reply_count"] / (df["retweet_count"] + 1)
     return df

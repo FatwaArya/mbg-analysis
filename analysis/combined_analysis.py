@@ -6,6 +6,7 @@ import os
 os.makedirs("data/analysis", exist_ok=True)
 df = pd.read_csv("data/processed/tweets_with_topics.csv")
 df["date"] = pd.to_datetime(df["date"])
+df = df[df["date"] >= "2025-01-01"]
 
 print("=== COMBINED ANALYSIS ===\n")
 
