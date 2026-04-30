@@ -1,0 +1,21 @@
+name: Run Pipeline
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start pipeline on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/mbg
+            nohup bash scripts/run_full_pipeline.sh > logs/pipeline_$(date +%Y%m%d_%H%M%S).log 2>&1 &
+            echo "Pipeline started"
+            sleep 2
+            bash scripts/pipeline_status.sh
