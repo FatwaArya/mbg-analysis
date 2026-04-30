@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 from auth import require_auth
+from spaces_loader import load_with_fallback, get_connection_status, format_run_info
 
 st.set_page_config(page_title="MBG Discourse Analysis", page_icon=None, layout="wide")
 require_auth()
@@ -13,7 +14,17 @@ DATA = "/opt/mbg/data"
 
 @st.cache_data
 def load():
-    df = pd.read_csv(f"{DATA}/processed/tweets_with_sentiment.csv", parse_dates=["date","created_at"])
+    df, source, run_info = load_with_fallback("tweets_with_sentiment")
+    if df is None:
+        st.error("Failed to load data from Spaces or local files")
+        st.stop()
+    
+    # Store source and run_info in session state for sidebar
+    st.session_state["data_source"] = source
+    st.session_state["run_info"] = run_info
+    
+    df["date"] = pd.to_datetime(df["date"])
+    df["created_at"] = pd.to_datetime(df["created_at"])
     return df[df["date"] >= "2025-01-01"]
 
 @st.cache_data
@@ -26,6 +37,22 @@ dist = df["sentiment_normalized"].value_counts()
 neg_pct = dist.get("negative",0)/total*100
 pos_pct = dist.get("positive",0)/total*100
 neu_pct = dist.get("neutral",0)/total*100
+
+# Sidebar: Connection status and run info
+with st.sidebar:
+    st.markdown("### Data Source")
+    source = st.session_state.get("data_source", "unknown")
+    if source == "spaces":
+        st.success("🌐 DigitalOcean Spaces")
+    elif source == "local":
+        st.warning("💾 Local Files")
+    else:
+        st.error("❌ Offline")
+    
+    run_info = st.session_state.get("run_info")
+    if run_info:
+        st.markdown("### Run Info")
+        st.markdown(format_run_info(run_info))
 
 st.title("MBG Program  Public Discourse Analysis")
 st.caption("Makan Bergizi Gratis  Twitter/X  107,375 tweets  20172026  Research Dashboard")

@@ -26,17 +26,8 @@ docs = id_df["text"].str[:512].tolist()
 log.info(f"Topic modeling on {len(docs):,} Indonesian tweets...")
 embed_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 
-# Embedding cache
-EMBEDDINGS_CACHE = "/opt/mbg/data/.topic_embeddings.npy"
-
-if os.path.exists(EMBEDDINGS_CACHE):
-    log.info("Loading cached embeddings...")
-    embeddings = np.load(EMBEDDINGS_CACHE)
-else:
-    log.info("Computing embeddings...")
-    embeddings = embed_model.encode(docs, batch_size=64, show_progress_bar=True)
-    np.save(EMBEDDINGS_CACHE, embeddings)
-    log.info(f"Embeddings cached → {EMBEDDINGS_CACHE}")
+log.info("Computing embeddings...")
+embeddings = embed_model.encode(docs, batch_size=64, show_progress_bar=True)
 
 topic_model = BERTopic(
     embedding_model=embed_model,

@@ -8,8 +8,9 @@ source venv/bin/activate
 
 LOGDIR="/opt/mbg/logs"
 mkdir -p "$LOGDIR"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-PIPELINE_LOG="$LOGDIR/pipeline_${TIMESTAMP}.log"
+RUN_ID=$(date +%Y%m%d_%H%M%S)
+PIPELINE_LOG="$LOGDIR/pipeline_${RUN_ID}.log"
+START_TIME=$(date +%s)
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$PIPELINE_LOG"
@@ -19,14 +20,16 @@ log "=========================================="
 log "MBG PIPELINE START"
 log "=========================================="
 
-# Step 1: Inference (if needed)
-if [ ! -f "data/processed/tweets_relevant.csv" ]; then
-    log "Step 1: Running inference..."
-    python3 inference.py 2>&1 | tee -a "$PIPELINE_LOG"
-    log "✓ Inference complete"
-else
-    log "Step 1: Skipping inference (tweets_relevant.csv exists)"
-fi
+# Clear checkpoints and caches for fresh run
+log "Clearing checkpoints and caches..."
+rm -f data/.sentiment_checkpoint.csv
+rm -f data/.topic_embeddings.npy
+log "✓ Caches cleared"
+
+# Step 1: Inference (always run)
+log "Step 1: Running inference..."
+python3 inference.py 2>&1 | tee -a "$PIPELINE_LOG"
+log "✓ Inference complete"
 
 # Step 2: Language Tagging
 log "Step 2: Running language detection..."
@@ -57,21 +60,28 @@ if [ $? -ne 0 ]; then
 fi
 log "✓ Data validation passed"
 
-# Step 7: Upload to DO Spaces
-log "Step 7: Uploading to DO Spaces..."
-BUCKET="s3://mbg-scraper-network-20260419071440"
+# Step 7: Generate Manifest
+log "Step 7: Generating run manifest..."
+END_TIME=$(date +%s)
+DURATION=$((END_TIME - START_TIME))
+python3 scripts/generate_manifest.py "$RUN_ID" "$DURATION" 2>&1 | tee -a "$PIPELINE_LOG"
+log "✓ Manifest generated (data/output/metadata.json)"
 
-s3cmd put data/output/tweets_with_sentiment.csv  $BUCKET/output/ 2>&1 | tee -a "$PIPELINE_LOG"
-s3cmd put data/output/tweets_with_topics.csv     $BUCKET/output/ 2>&1 | tee -a "$PIPELINE_LOG"
-s3cmd put data/output/topic_info.csv             $BUCKET/output/ 2>&1 | tee -a "$PIPELINE_LOG"
-s3cmd put data/processed/tweets_relevant.csv     $BUCKET/processed/ 2>&1 | tee -a "$PIPELINE_LOG"
+# Step 8: Upload to DO Spaces
+log "Step 8: Uploading timestamped run to DO Spaces..."
+python3 scripts/upload_run.py 2>&1 | tee -a "$PIPELINE_LOG"
+if [ $? -ne 0 ]; then
+    log "✗ Upload FAILED. Pipeline completed but data not versioned in Spaces."
+    exit 1
+fi
+log "✓ Upload complete (runs/$RUN_ID/)"
 
-log "✓ Upload complete"
-
-# Step 8: Generate Summary
+# Step 9: Generate Summary
 log "=========================================="
 log "PIPELINE SUMMARY"
 log "=========================================="
+log "Run ID:                 $RUN_ID"
+log "Duration:               ${DURATION}s"
 log "tweets_relevant:        $(wc -l < data/processed/tweets_relevant.csv) rows"
 log "tweets_with_sentiment:  $(wc -l < data/output/tweets_with_sentiment.csv) rows"
 log "tweets_with_topics:     $(wc -l < data/output/tweets_with_topics.csv) rows"

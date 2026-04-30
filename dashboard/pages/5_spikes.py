@@ -5,6 +5,7 @@ import plotly.express as px
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from auth import require_auth
+from spaces_loader import load_with_fallback
 
 st.set_page_config(page_title="Spikes  MBG", page_icon=None, layout="wide")
 require_auth()
@@ -18,7 +19,11 @@ st.markdown("---")
 
 @st.cache_data
 def load():
-    df = pd.read_csv(f"{DATA}/processed/tweets_with_sentiment.csv", parse_dates=["date"])
+    df, _, _ = load_with_fallback("tweets_with_sentiment")
+    if df is None:
+        st.error("Failed to load data")
+        st.stop()
+    df["date"] = pd.to_datetime(df["date"])
     return df[df["date"] >= "2025-01-01"]
 
 df = load()

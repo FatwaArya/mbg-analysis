@@ -9,6 +9,7 @@ from auth import require_auth
 st.set_page_config(page_title="Analysis  MBG", page_icon=None, layout="wide")
 require_auth()
 
+# Note: Analysis CSVs stay local-only (not versioned in Spaces)
 DATA  = "/opt/mbg/data"
 ADIR  = f"{DATA}/analysis"
 COLORS = {"negative": "#e74c3c", "neutral": "#95a5a6", "positive": "#2ecc71"}
