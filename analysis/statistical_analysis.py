@@ -4,7 +4,12 @@ from scipy import stats
 import os
 
 os.makedirs("data/analysis", exist_ok=True)
-df = pd.read_csv("data/processed/tweets_relevant_tagged.csv")
+for _p in ["data/processed/tweets_with_topics.csv",
+           "data/processed/tweets_with_sentiment.csv",
+           "data/processed/tweets_relevant_tagged.csv"]:
+    if os.path.exists(_p):
+        df = pd.read_csv(_p)
+        break
 df["date"] = pd.to_datetime(df["date"])
 df["created_at"] = pd.to_datetime(df["created_at"])
 
