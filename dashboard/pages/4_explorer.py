@@ -41,8 +41,15 @@ with col2:
 with col3:
     min_eng = st.number_input("Min engagement", min_value=0, value=0, step=100)
 with col4:
-    query_opts = ["All"] + sorted(df["query_raw"].unique().tolist())
-    query_filter = st.selectbox("Query", query_opts)
+    topic_opts = ["All"]
+    if "topic_id" in df.columns:
+        try:
+            ti = pd.read_csv(f"{DATA}/processed/topic_info.csv")
+            valid_t = ti[ti["Topic"] != -1]
+            topic_opts += [f"{r['Topic']} — {r['Name'][:35]}" for _, r in valid_t.nlargest(20,"Count").iterrows()]
+        except Exception:
+            pass
+    topic_filter = st.selectbox("Topic", topic_opts)
 with col5:
     keyword = st.text_input("Keyword search", placeholder="e.g. keracunan")
 
@@ -52,8 +59,9 @@ dates = st.date_input("Date range", [df["date"].min(), df["date"].max()])
 mask = (df["sentiment_normalized"].isin(sent_filter) &
         df["detected_lang"].isin(lang_filter) &
         (df["engagement_total"] >= min_eng))
-if query_filter != "All":
-    mask &= df["query_raw"] == query_filter
+if topic_filter != "All" and "topic_id" in df.columns:
+    tid = int(topic_filter.split(" — ")[0])
+    mask &= df["topic_id"] == tid
 if keyword:
     mask &= df["text"].str.contains(keyword, case=False, na=False)
 if len(dates) == 2:

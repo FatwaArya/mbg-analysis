@@ -138,6 +138,31 @@ with col8:
 
 st.markdown("---")
 
+# ── Sentiment per topic (top 15) ──────────────────────────────────────────────
+st.markdown("#### Sentiment Breakdown by Topic (Top 15 by volume)")
+st.caption("Topic 1 (corruption) and Topic 2 (school/education) are the most negative large topics")
+try:
+    ti = pd.read_csv(f"{DATA}/processed/topic_info.csv")
+    dft = pd.read_csv(f"{DATA}/processed/tweets_with_topics.csv")
+    valid = ti[ti["Topic"] != -1]
+    id_to_name = dict(zip(valid["Topic"], valid["Name"].str[:40]))
+    top15 = valid.nlargest(15, "Count")["Topic"].tolist()
+    ts = dft[dft["topic_id"].isin(top15)].groupby(["topic_id","sentiment_normalized"]).size().unstack(fill_value=0)
+    ts_pct = ts.div(ts.sum(axis=1), axis=0) * 100
+    ts_pct.index = [id_to_name.get(i, str(i)) for i in ts_pct.index]
+    ts_pct = ts_pct.sort_values("negative", ascending=False)
+    fig8 = px.bar(ts_pct.reset_index().melt(id_vars="topic_id"),
+                  x="topic_id", y="value", color="sentiment_normalized",
+                  color_discrete_map=COLORS, barmode="stack",
+                  labels={"topic_id":"Topic","value":"%","sentiment_normalized":""})
+    fig8.update_layout(height=380, margin=dict(t=10,b=10),
+                       xaxis=dict(tickangle=-35))
+    st.plotly_chart(fig8, use_container_width=True)
+except Exception as e:
+    st.info(f"Topic data loading: {e}")
+
+st.markdown("---")
+
 # ── Top posts by sentiment ────────────────────────────────────────────────────
 st.markdown("#### Top Posts by Sentiment")
 tab_neg, tab_pos, tab_neu = st.tabs(["😠 Most Viral Negative", "😊 Most Viral Positive", "😐 Most Viral Neutral"])
