@@ -15,6 +15,10 @@ DATA = "/opt/mbg/data"
 def load():
     return pd.read_csv(f"{DATA}/processed/tweets_with_sentiment.csv", parse_dates=["date","created_at"])
 
+@st.cache_data
+def load_paper_stats():
+    return pd.read_csv(f"{DATA}/analysis/paper_statistics_summary.csv").iloc[0]
+
 df = load()
 total = len(df)
 dist = df["sentiment_normalized"].value_counts()
@@ -79,9 +83,10 @@ with col2:
 
 st.markdown("---")
 st.markdown("### 🗺️ Navigate the Dashboard")
-c1,c2,c3,c4,c5 = st.columns(5)
-c1.info("**📊 Sentiment**\nTrends, distribution, engagement by sentiment, top posts")
-c2.info("**⚡ Spikes**\nAnomaly days, what drove them, spike vs normal sentiment")
-c3.info("**💬 Engagement**\nVirality, amplification, hourly patterns, query effectiveness")
-c4.info("**🗂 Topics**\nBERTopic clusters, theme evolution over time")
-c5.info("**🔍 Explorer**\nFilter & browse all 107k tweets")
+c1,c2,c3,c4,c5,c6 = st.columns(6)
+c1.info("**📅 Temporal**\nVolume trends, hourly patterns, negativity acceleration")
+c2.info("**📊 Sentiment**\nDistribution, engagement, topic breakdown")
+c3.info("**⚡ Spikes**\nAnomaly days, spike events, what drove them")
+c4.info("**💬 Engagement**\nVirality, query effectiveness, regional gaps")
+c5.info("**🗂 Topics**\nBERTopic clusters, theme evolution")
+c6.info("**🔬 Analysis**\nAll research findings, hypotheses confirmed")
