@@ -21,7 +21,7 @@ print(f"   Significant     : {p_val < 0.05}")
 print()
 
 # 2. Sentiment shift over time
-monthly = (df.groupby([df["date"].dt.to_period("ME").astype(str), "sentiment_normalized"])
+monthly = (df.groupby([df["date"].dt.to_period("M").astype(str), "sentiment_normalized"])
              .size().unstack(fill_value=0))
 monthly = monthly.div(monthly.sum(axis=1), axis=0) * 100
 monthly.to_csv("data/analysis/monthly_sentiment_shift.csv")
