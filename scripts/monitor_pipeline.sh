@@ -16,7 +16,8 @@ step_status() {
     local pid_pattern=$1
     local done_file=$2
     local pids
-    pids=$(pgrep -f "$pid_pattern" 2>/dev/null | tr '\n' ' ')
+    # Only count processes that are actually alive (filters out dead screen sockets)
+    pids=$(pgrep -f "$pid_pattern" 2>/dev/null | while read -r pid; do kill -0 "$pid" 2>/dev/null && echo "$pid"; done | tr '\n' ' ')
     local count
     count=$(echo "$pids" | wc -w)
 
