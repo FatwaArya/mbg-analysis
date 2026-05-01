@@ -30,6 +30,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /opt/mbg
+            # Remove any old pipeline scripts that may have been re-uploaded
+            rm -f scripts/run_pipeline.sh
             chmod +x scripts/*.sh scripts/*.py
             echo 'dashboard_password = "${{ secrets.DASHBOARD_PASSWORD }}"' > /opt/mbg/dashboard/.streamlit/secrets.toml
             systemctl restart mbg-dashboard
