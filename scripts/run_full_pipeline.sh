@@ -4,6 +4,18 @@
 
 set -e
 cd /opt/mbg
+
+LOCKFILE="/tmp/mbg_pipeline.lock"
+if [ -f "$LOCKFILE" ]; then
+    LOCK_PID=$(cat "$LOCKFILE")
+    if kill -0 "$LOCK_PID" 2>/dev/null; then
+        echo "Pipeline already running (PID $LOCK_PID). Aborting."
+        exit 1
+    fi
+fi
+echo $$ > "$LOCKFILE"
+trap "rm -f $LOCKFILE" EXIT INT TERM
+
 source venv/bin/activate
 
 LOGDIR="/opt/mbg/logs"

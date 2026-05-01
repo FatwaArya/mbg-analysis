@@ -1,141 +1,111 @@
 #!/bin/bash
-# MBG Pipeline Monitor
-# Shows real-time status of all pipeline components
+# MBG Pipeline Monitor - live refresh, accurate step status
 
-set -e
 cd /opt/mbg
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-echo "=========================================="
-echo "MBG PIPELINE STATUS MONITOR"
-echo "Time: $(date '+%Y-%m-%d %H:%M:%S')"
-echo "=========================================="
-echo ""
+LOCKFILE="/tmp/mbg_pipeline.lock"
 
-# Check for current run metadata
-if [ -f "data/output/metadata.json" ]; then
-    echo -e "${BLUE}[CURRENT RUN]${NC}"
-    RUN_ID=$(python3 -c "import json; print(json.load(open('data/output/metadata.json'))['run_id'])" 2>/dev/null || echo "unknown")
-    RUN_STATUS=$(python3 -c "import json; print(json.load(open('data/output/metadata.json'))['status'])" 2>/dev/null || echo "unknown")
-    echo -e "  Run ID: ${GREEN}$RUN_ID${NC}"
-    echo -e "  Status: $RUN_STATUS"
-    echo ""
-fi
+step_status() {
+    local pid_pattern=$1
+    local done_file=$2
+    local pids
+    pids=$(pgrep -f "$pid_pattern" 2>/dev/null | tr '\n' ' ')
+    local count
+    count=$(echo "$pids" | wc -w)
 
-# Check Spaces upload status
-echo -e "${BLUE}[SPACES STATUS]${NC}"
-if command -v s3cmd &> /dev/null; then
-    LATEST_RUN=$(s3cmd ls s3://mbg-scraper-network-20260419071440/latest_run.json 2>/dev/null | awk '{print $1, $2}')
-    if [ -n "$LATEST_RUN" ]; then
-        echo -e "  ${GREEN}✓${NC} Connected to DigitalOcean Spaces"
-        echo "  Latest manifest: $LATEST_RUN"
-        
-        # Get latest run_id from Spaces
-        SPACES_RUN_ID=$(s3cmd get s3://mbg-scraper-network-20260419071440/latest_run.json - 2>/dev/null | python3 -c "import json, sys; print(json.load(sys.stdin)['run_id'])" 2>/dev/null || echo "unknown")
-        echo "  Latest run in Spaces: $SPACES_RUN_ID"
+    if [ -n "$(echo "$pids" | tr -d ' ')" ] && [ "$count" -gt 1 ]; then
+        echo -e "${YELLOW}RUNNING x${count} ⚠ DUPLICATE${NC} (PIDs: $pids)"
+    elif [ -n "$(echo "$pids" | tr -d ' ')" ]; then
+        echo -e "${GREEN}RUNNING${NC} (PID: $pids)"
+    elif [ -n "$done_file" ] && [ -f "$done_file" ]; then
+        echo -e "${CYAN}DONE${NC} ($(stat -c '%y' "$done_file" | cut -d'.' -f1))"
     else
-        echo -e "  ${YELLOW}⚠${NC} Cannot connect to Spaces or no runs uploaded"
-    fi
-else
-    echo -e "  ${RED}✗${NC} s3cmd not installed"
-fi
-echo ""
-
-# Check running processes
-echo -e "${BLUE}[PROCESSES]${NC}"
-INFERENCE_PID=$(pgrep -f "python.*inference.py" || echo "")
-SENTIMENT_PID=$(pgrep -f "python.*run_sentiment.py" || echo "")
-TOPICS_PID=$(pgrep -f "python.*run_topics.py" || echo "")
-PREPROCESS_PID=$(pgrep -f "python.*preprocess_text.py" || echo "")
-TAGGING_PID=$(pgrep -f "python.*tag_language.py" || echo "")
-UPLOAD_PID=$(pgrep -f "python.*upload_run.py" || echo "")
-
-[ -n "$INFERENCE_PID" ] && echo -e "  ${GREEN}✓${NC} inference.py running (PID: $INFERENCE_PID)" || echo -e "  ${RED}✗${NC} inference.py not running"
-[ -n "$TAGGING_PID" ] && echo -e "  ${GREEN}✓${NC} tag_language.py running (PID: $TAGGING_PID)" || echo -e "  ${RED}✗${NC} tag_language.py not running"
-[ -n "$PREPROCESS_PID" ] && echo -e "  ${GREEN}✓${NC} preprocess_text.py running (PID: $PREPROCESS_PID)" || echo -e "  ${RED}✗${NC} preprocess_text.py not running"
-[ -n "$SENTIMENT_PID" ] && echo -e "  ${GREEN}✓${NC} run_sentiment.py running (PID: $SENTIMENT_PID)" || echo -e "  ${RED}✗${NC} run_sentiment.py not running"
-[ -n "$TOPICS_PID" ] && echo -e "  ${GREEN}✓${NC} run_topics.py running (PID: $TOPICS_PID)" || echo -e "  ${RED}✗${NC} run_topics.py not running"
-[ -n "$UPLOAD_PID" ] && echo -e "  ${YELLOW}⚠${NC} upload_run.py running (PID: $UPLOAD_PID)" || echo -e "  ${RED}✗${NC} upload_run.py not running"
-echo ""
-
-# Check output files
-echo -e "${BLUE}[OUTPUT FILES]${NC}"
-check_file() {
-    local file=$1
-    local name=$2
-    if [ -f "$file" ]; then
-        local rows=$(wc -l < "$file" 2>/dev/null || echo "0")
-        local size=$(du -h "$file" | cut -f1)
-        local mtime=$(stat -c %y "$file" 2>/dev/null | cut -d'.' -f1 || stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "$file" 2>/dev/null)
-        echo -e "  ${GREEN}✓${NC} $name: $rows rows, $size (modified: $mtime)"
-    else
-        echo -e "  ${RED}✗${NC} $name: NOT FOUND"
+        echo -e "${RED}IDLE${NC}"
     fi
 }
 
-check_file "data/processed/tweets_relevant.csv" "tweets_relevant"
-check_file "data/processed/tweets_relevant_tagged.csv" "tweets_tagged"
-check_file "data/processed/tweets_preprocessed.csv" "tweets_preprocessed"
-check_file "data/output/tweets_with_sentiment.csv" "tweets_with_sentiment"
-check_file "data/output/tweets_with_topics.csv" "tweets_with_topics"
-check_file "data/output/topic_info.csv" "topic_info"
-echo ""
+file_info() {
+    local f=$1
+    if [ -f "$f" ]; then
+        local rows size mtime
+        rows=$(wc -l < "$f")
+        size=$(du -h "$f" | cut -f1)
+        mtime=$(stat -c '%y' "$f" | cut -d'.' -f1)
+        echo -e "${GREEN}✓${NC} $(basename "$f"): $rows rows, $size — $mtime"
+    else
+        echo -e "${RED}✗${NC} $(basename "$f"): missing"
+    fi
+}
 
-# Check checkpoint files
-echo -e "${BLUE}[CHECKPOINTS]${NC}"
-if [ -f "data/.sentiment_checkpoint.csv" ]; then
-    CHECKPOINT_ROWS=$(wc -l < data/.sentiment_checkpoint.csv)
-    echo -e "  ${YELLOW}⚠${NC} Sentiment checkpoint exists: $CHECKPOINT_ROWS rows processed"
-else
-    echo -e "  ${GREEN}✓${NC} No active checkpoints"
-fi
-echo ""
+while true; do
+    clear
+    echo -e "${BLUE}══════════════════════════════════════════${NC}"
+    echo -e "${BLUE}  MBG PIPELINE MONITOR  $(date '+%Y-%m-%d %H:%M:%S')${NC}"
+    echo -e "${BLUE}══════════════════════════════════════════${NC}"
 
-# Check recent logs
-echo -e "${BLUE}[RECENT LOGS]${NC}"
-if [ -d "logs" ]; then
+    # Pipeline lock
+    if [ -f "$LOCKFILE" ]; then
+        LOCK_PID=$(cat "$LOCKFILE")
+        if kill -0 "$LOCK_PID" 2>/dev/null; then
+            echo -e "\n  Pipeline: ${GREEN}RUNNING${NC} (orchestrator PID $LOCK_PID)"
+        else
+            echo -e "\n  Pipeline: ${YELLOW}STALE LOCK${NC} (PID $LOCK_PID dead — run: rm $LOCKFILE)"
+        fi
+    else
+        echo -e "\n  Pipeline: ${RED}NOT RUNNING${NC}"
+    fi
+
+    # Step status
+    echo -e "\n${BLUE}[STEPS]${NC}"
+    echo -e "  1. inference.py      $(step_status 'python.*inference\.py' '')"
+    echo -e "  2. tag_language.py   $(step_status 'python.*tag_language\.py' 'data/.tagging_done')"
+    echo -e "  3. preprocess_text   $(step_status 'python.*preprocess_text\.py' 'data/.preprocessing_done')"
+    echo -e "  4. run_sentiment.py  $(step_status 'python.*run_sentiment\.py' 'data/output/tweets_with_sentiment.csv')"
+    echo -e "  5. run_topics.py     $(step_status 'python.*run_topics\.py' 'data/output/tweets_with_topics.csv')"
+    echo -e "  6. validate          $(step_status 'python.*validate_data' '')"
+    echo -e "  7. upload_run.py     $(step_status 'python.*upload_run\.py' '')"
+
+    # Sentiment progress
+    if pgrep -f 'python.*run_sentiment\.py' > /dev/null 2>&1; then
+        SENT_PROGRESS=$(tail -1 /opt/mbg/sentiment.log 2>/dev/null | grep -oP '\d+/\d+' | tail -1)
+        [ -n "$SENT_PROGRESS" ] && echo -e "\n  Sentiment progress: ${YELLOW}${SENT_PROGRESS}${NC}"
+    fi
+
+    # Output files
+    echo -e "\n${BLUE}[OUTPUT FILES]${NC}"
+    for f in \
+        data/processed/tweets_relevant.csv \
+        data/processed/tweets_relevant_tagged.csv \
+        data/processed/tweets_preprocessed.csv \
+        data/output/tweets_with_sentiment.csv \
+        data/output/tweets_with_topics.csv \
+        data/output/topic_info.csv; do
+        echo -e "  $(file_info "$f")"
+    done
+
+    # Latest log tail
+    echo -e "\n${BLUE}[LATEST LOG]${NC}"
     LATEST_LOG=$(ls -t logs/pipeline_*.log 2>/dev/null | head -1)
     if [ -n "$LATEST_LOG" ]; then
-        echo "  Latest pipeline log: $LATEST_LOG"
-        echo "  Last 5 lines:"
-        tail -5 "$LATEST_LOG" | sed 's/^/    /'
+        echo "  $LATEST_LOG"
+        tail -4 "$LATEST_LOG" | sed 's/^/  /'
     else
         echo "  No pipeline logs found"
     fi
-else
-    echo "  Logs directory not found"
-fi
-echo ""
 
-# System resources
-echo -e "${BLUE}[SYSTEM RESOURCES]${NC}"
-echo "  CPU: $(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)% used"
-echo "  Memory: $(free -h | awk '/^Mem:/ {print $3 "/" $2}')"
-echo "  Disk: $(df -h /opt/mbg | awk 'NR==2 {print $3 "/" $2 " (" $5 " used)"}')"
-echo ""
+    # Resources
+    echo -e "\n${BLUE}[RESOURCES]${NC}"
+    echo "  Mem: $(free -h | awk '/^Mem:/ {print $3"/"$2}')"
+    echo "  Disk: $(df -h /opt/mbg | awk 'NR==2 {print $3"/"$2" ("$5" used)"}')"
 
-# Quick stats if sentiment file exists
-if [ -f "data/output/tweets_with_sentiment.csv" ]; then
-    echo -e "${BLUE}[QUICK STATS]${NC}"
-    source venv/bin/activate
-    python3 -c "
-import pandas as pd
-df = pd.read_csv('data/output/tweets_with_sentiment.csv', usecols=['sentiment_normalized'])
-total = len(df)
-dist = df['sentiment_normalized'].value_counts()
-print(f'  Total tweets: {total:,}')
-print(f'  Negative: {dist.get(\"negative\", 0):,} ({dist.get(\"negative\", 0)/total*100:.1f}%)')
-print(f'  Neutral:  {dist.get(\"neutral\", 0):,} ({dist.get(\"neutral\", 0)/total*100:.1f}%)')
-print(f'  Positive: {dist.get(\"positive\", 0):,} ({dist.get(\"positive\", 0)/total*100:.1f}%)')
-" 2>/dev/null || echo "  Unable to compute stats"
-fi
-
-echo ""
-echo "=========================================="
-echo "Monitor complete. Run again to refresh."
-echo "=========================================="
+    echo -e "\n${BLUE}══════════════════════════════════════════${NC}"
+    echo "  Refreshing every 10s — Ctrl+C to exit"
+    sleep 10
+done
