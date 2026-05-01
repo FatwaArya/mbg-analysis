@@ -20,12 +20,24 @@ step_status() {
     local count
     count=$(echo "$pids" | wc -w)
 
+    # Get pipeline start time from lockfile
+    local pipeline_start=0
+    [ -f "$LOCKFILE" ] && pipeline_start=$(stat -c '%Y' "$LOCKFILE" 2>/dev/null || echo 0)
+
     if [ -n "$(echo "$pids" | tr -d ' ')" ] && [ "$count" -gt 1 ]; then
         echo -e "${YELLOW}RUNNING x${count} ⚠ DUPLICATE${NC} (PIDs: $pids)"
     elif [ -n "$(echo "$pids" | tr -d ' ')" ]; then
         echo -e "${GREEN}RUNNING${NC} (PID: $pids)"
     elif [ -n "$done_file" ] && [ -f "$done_file" ]; then
-        echo -e "${CYAN}DONE${NC} ($(stat -c '%y' "$done_file" | cut -d'.' -f1))"
+        local file_mtime
+        file_mtime=$(stat -c '%Y' "$done_file" 2>/dev/null || echo 0)
+        local mtime_str
+        mtime_str=$(stat -c '%y' "$done_file" | cut -d'.' -f1)
+        if [ "$file_mtime" -ge "$pipeline_start" ]; then
+            echo -e "${CYAN}DONE${NC} ($mtime_str)"
+        else
+            echo -e "${YELLOW}PREV RUN${NC} ($mtime_str)"
+        fi
     else
         echo -e "${RED}IDLE${NC}"
     fi
