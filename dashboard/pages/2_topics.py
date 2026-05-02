@@ -4,7 +4,7 @@ import plotly.express as px
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from auth import require_auth
-from spaces_loader import load_with_fallback
+from spaces_loader import load_with_fallback, filter_topics
 
 st.set_page_config(page_title="Topics  MBG", page_icon=None, layout="wide")
 require_auth()
@@ -19,6 +19,7 @@ st.markdown("---")
 @st.cache_data
 def load():
     ti, _, _ = load_with_fallback("topic_info")
+    ti = filter_topics(ti)
     df, _, _ = load_with_fallback("tweets_with_topics")
     if ti is None or df is None:
         st.error("Failed to load data")

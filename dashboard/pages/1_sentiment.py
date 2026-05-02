@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from auth import require_auth
-from spaces_loader import load_with_fallback
+from spaces_loader import load_with_fallback, filter_topics
 
 st.set_page_config(page_title="Sentiment  MBG", page_icon=None, layout="wide")
 require_auth()
@@ -148,7 +148,7 @@ st.markdown("---")
 st.markdown("#### Sentiment Breakdown by Topic (Top 15 by volume)")
 st.caption("Topic 1 (corruption) and Topic 2 (school/education) are the most negative large topics")
 try:
-    ti = pd.read_csv(f"{DATA}/output/topic_info.csv")
+    ti = filter_topics(pd.read_csv(f"{DATA}/output/topic_info.csv"))
     dft = pd.read_csv(f"{DATA}/processed/tweets_with_topics.csv", parse_dates=["date"])
     dft = dft[dft["date"] >= "2025-01-01"]
     valid = ti[ti["Topic"] != -1]

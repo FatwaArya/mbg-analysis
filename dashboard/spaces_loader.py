@@ -148,3 +148,15 @@ def format_run_info(run_info):
 **Duration:** {duration_str}  
 **Git:** `{run_info.get('git_commit', 'unknown')}`
 """
+
+
+EXCLUDED_TOPIC_KEYWORDS = ["israel", "iran", "palestina", "gaza"]
+
+def filter_topics(df):
+    """Remove off-topic political topics by name keywords."""
+    if df is None or "Name" not in df.columns:
+        return df
+    mask = df["Name"].str.lower().apply(
+        lambda n: not any(kw in n for kw in EXCLUDED_TOPIC_KEYWORDS)
+    )
+    return df[mask].reset_index(drop=True)
