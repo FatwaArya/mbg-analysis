@@ -50,6 +50,7 @@ if [ ! -f "model/config.json" ]; then
 fi
 
 python3 inference.py 2>&1 | tee -a "$PIPELINE_LOG"
+cp data/output/tweets_relevant.csv data/processed/tweets_relevant.csv
 log "✓ Inference complete"
 
 # Step 2: Language Tagging
