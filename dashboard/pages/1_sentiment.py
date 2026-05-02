@@ -148,7 +148,7 @@ st.markdown("---")
 st.markdown("#### Sentiment Breakdown by Topic (Top 15 by volume)")
 st.caption("Topic 1 (corruption) and Topic 2 (school/education) are the most negative large topics")
 try:
-    ti = pd.read_csv(f"{DATA}/processed/topic_info.csv")
+    ti = pd.read_csv(f"{DATA}/output/topic_info.csv")
     dft = pd.read_csv(f"{DATA}/processed/tweets_with_topics.csv", parse_dates=["date"])
     dft = dft[dft["date"] >= "2025-01-01"]
     valid = ti[ti["Topic"] != -1]

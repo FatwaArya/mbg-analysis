@@ -46,7 +46,7 @@ with col4:
     topic_opts = ["All"]
     if "topic_id" in df.columns:
         try:
-            ti = pd.read_csv(f"{DATA}/processed/topic_info.csv")
+            ti = pd.read_csv(f"{DATA}/output/topic_info.csv")
             valid_t = ti[ti["Topic"] != -1]
             topic_opts += [f"{r['Topic']}  {r['Name'][:35]}" for _, r in valid_t.nlargest(20,"Count").iterrows()]
         except Exception:
