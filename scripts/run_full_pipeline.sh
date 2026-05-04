@@ -2,7 +2,7 @@
 # Complete MBG Analysis Pipeline Orchestrator
 # Runs: Inference → Language Tagging → Preprocessing → Sentiment → Topics → Validation → Upload
 
-set -e
+set -euo pipefail  # FIX: fail pipeline on any command or piped-step errors.
 cd /opt/mbg
 
 LOCKFILE="/tmp/mbg_pipeline.lock"
@@ -65,17 +65,17 @@ log "✓ Preprocessing complete"
 
 # Step 4: Sentiment Analysis
 log "Step 4: Running sentiment analysis..."
-python3 run_sentiment.py 2>&1 | tee -a "$PIPELINE_LOG"
+python3 scripts/run_sentiment.py 2>&1 | tee -a "$PIPELINE_LOG"  # FIX: call correct script path.
 log "✓ Sentiment analysis complete"
 
 # Step 5: Topic Modeling
 log "Step 5: Running topic modeling..."
-python3 run_topics.py 2>&1 | tee -a "$PIPELINE_LOG"
+python3 scripts/run_topics.py 2>&1 | tee -a "$PIPELINE_LOG"  # FIX: call correct script path.
 log "✓ Topic modeling complete"
 
 # Step 6: Data Validation
 log "Step 6: Validating data contract..."
-python3 scripts/validate_data_contract.py 2>&1 | tee -a "$PIPELINE_LOG"
+python3 scripts/validate_data_contract.py 2>&1 | tee -a "$PIPELINE_LOG"  # FIX: validate pipeline outputs only at this stage.
 if [ $? -ne 0 ]; then
     log "✗ Data validation FAILED. Aborting."
     exit 1

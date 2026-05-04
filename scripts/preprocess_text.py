@@ -14,12 +14,17 @@ import spacy
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 from tqdm import tqdm
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # FIX: allow importing runtime from repo root.
+from runtime import RUNTIME
 
 tqdm.pandas()
 
-INPUT = "data/processed/tweets_relevant_tagged.csv"
-OUTPUT = "data/processed/tweets_preprocessed.csv"
-REJECTED = "data/processed/tweets_preprocessing_rejected.csv"
+INPUT = f"{RUNTIME.processed_dir}/tweets_relevant_tagged.csv"  # FIX: centralize runtime input path.
+OUTPUT = f"{RUNTIME.processed_dir}/tweets_preprocessed.csv"  # FIX: centralize runtime output path.
+REJECTED = f"{RUNTIME.processed_dir}/tweets_preprocessing_rejected.csv"  # FIX: centralize runtime reject path.
 
 # ── Load tools once at startup ────────────────────────────────────────
 print("Loading Sastrawi stemmer...")
@@ -111,20 +116,42 @@ def clean_topic_en(text):
     ]
     return " ".join(words).strip()
 
-# ── STEP 3c: Router — pick cleaner based on detected_lang ────────────
-def clean_topic(row):
-    lang = str(row.get("detected_lang", "id"))
-    if lang == "en":
-        return clean_topic_en(row["text"])
-    else:
-        return clean_topic_id(row["text"]) # default to Indonesian
-
 # ── Apply cleaners ────────────────────────────────────────────────────
 print("Step 1/2: Applying light cleaning (for sentiment)...")
 df["text_clean_light"] = df["text"].progress_apply(clean_light)
 
 print("Step 2/2: Applying topic cleaning (Sastrawi for id, spaCy for en)...")
-df["text_clean_topic"] = df.progress_apply(clean_topic, axis=1)
+df["text_clean_topic"] = ""
+lang_series = df.get("detected_lang", pd.Series(index=df.index, data="id")).fillna("unknown").astype(str)
+en_mask = lang_series == "en"
+id_mask = ~en_mask
+df.loc[id_mask, "text_clean_topic"] = df.loc[id_mask, "text"].progress_apply(clean_topic_id)
+
+if en_mask.any():
+    # FIX: replace row-wise apply with batched nlp.pipe for English rows.
+    en_prepped = (
+        df.loc[en_mask, "text"]
+        .astype(str)
+        .apply(remove_noise)
+        .str.replace(r"#\w+", "", regex=True)
+        .str.replace(r"[^\w\s]", " ", regex=True)
+        .str.replace(r"\d+", "", regex=True)
+        .str.lower()
+        .str.slice(0, 1_000_000)
+    )
+    en_cleaned = []
+    for doc in nlp.pipe(en_prepped.tolist(), batch_size=RUNTIME.embedding_batch_size):
+        words = [
+            token.lemma_
+            for token in doc
+            if not token.is_stop
+            and not token.is_punct
+            and not token.is_space
+            and len(token.lemma_) > 2
+            and token.lemma_.isalpha()
+        ]
+        en_cleaned.append(" ".join(words).strip())
+    df.loc[en_mask, "text_clean_topic"] = en_cleaned
 
 # ── Quality check ─────────────────────────────────────────────────────
 empty_mask = df["text_clean_topic"].str.strip() == ""
@@ -140,31 +167,39 @@ if empty_mask.sum() > 0:
 print("\n=== SAMPLE COMPARISON ===")
 
 # Indonesian sample
-id_sample = df[df["detected_lang"] == "id"].iloc[0]
-print("Indonesian tweet:")
-print(f" Original : {id_sample['text'][:120]}")
-print(f" Light clean : {id_sample['text_clean_light'][:120]}")
-print(f" Topic clean : {id_sample['text_clean_topic'][:120]}")
+id_sample_df = df[df["detected_lang"] == "id"]
+if len(id_sample_df) > 0:
+    # FIX: guard against empty language subsets before iloc access.
+    id_sample = id_sample_df.iloc[0]
+    print("Indonesian tweet:")
+    print(f" Original : {id_sample['text'][:120]}")
+    print(f" Light clean : {id_sample['text_clean_light'][:120]}")
+    print(f" Topic clean : {id_sample['text_clean_topic'][:120]}")
+else:
+    print("Indonesian tweet sample unavailable (no id rows).")
 
 print()
 
 # English sample
 en_sample = df[df["detected_lang"] == "en"]
 if len(en_sample) > 0:
+    # FIX: guard against empty language subsets before iloc access.
     en_sample = en_sample.iloc[0]
     print("English tweet:")
     print(f" Original : {en_sample['text'][:120]}")
     print(f" Light clean : {en_sample['text_clean_light'][:120]}")
     print(f" Topic clean : {en_sample['text_clean_topic'][:120]}")
+else:
+    print("English tweet sample unavailable (no en rows).")
 
 # ── Save ──────────────────────────────────────────────────────────────
 df.to_csv(OUTPUT, index=False)
 
 # Write completion signal
-with open("/opt/mbg/data/.preprocessing_done", "w") as f:
+with open(f"{RUNTIME.data_dir}/.preprocessing_done", "w") as f:
     f.write(f"completed at {pd.Timestamp.now()}\n")
     f.write(f"rows preprocessed: {len(df)}\n")
-print("Completion signal written -> /opt/mbg/data/.preprocessing_done")
+print(f"Completion signal written -> {RUNTIME.data_dir}/.preprocessing_done")
 
 print(f"\n=== PREPROCESSING COMPLETE ===")
 print(f"Output rows : {len(df):,}")
@@ -176,4 +211,4 @@ print("Tools used:")
 print(" Indonesian → Sastrawi ECS stemmer + Sastrawi stopwords")
 print(" English → spaCy en_core_web_sm lemmatizer + spaCy stopwords")
 print()
-print("Next step: python3 run_sentiment.py")
+print("Next step: python3 scripts/run_sentiment.py")

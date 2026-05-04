@@ -15,6 +15,26 @@ for path in [
         df = pd.read_csv(path)
         print(f"Loaded: {path} ({len(df):,} rows)")
         break
+if "df" not in locals():
+    # FIX: emit clear insufficient-data state when no source file exists.
+    print("No input file found. Writing empty temporal outputs.")
+    pd.DataFrame(columns=["date", "tweet_count", "total_engagement", "avg_engagement", "total_retweets",
+                          "rolling_mean", "rolling_std", "z_score", "is_spike"]).to_csv(
+        "data/analysis/daily_volume_spikes.csv", index=False
+    )
+    pd.DataFrame([{
+        "n_spike_days": 0,
+        "peak_spike_date": "N/A",
+        "peak_spike_tweets": 0,
+        "peak_spike_z_score": 0,
+        "weekly_trend": "insufficient data",
+        "trend_p_value": "insufficient data",
+    }]).to_csv("data/analysis/temporal_spike_summary.csv", index=False)
+    # FIX: continue with an empty frame instead of raising.
+    df = pd.DataFrame(columns=[
+        "id", "date", "engagement_total", "retweet_count", "reply_count",
+        "favorite_count", "sentiment_normalized", "text"
+    ])
 
 df["date"] = pd.to_datetime(df["date"])
 df = df[df["date"] >= "2025-01-01"]
@@ -63,10 +83,18 @@ if "sentiment_normalized" in df.columns:
 # ── 4. Weekly trend + Mann-Kendall direction ─────────────────────────────────
 weekly = df.resample("W", on="date").size().reset_index(name="count")
 # Simple linear trend
-slope, intercept, r, p, _ = stats.linregress(range(len(weekly)), weekly["count"])
-trend_dir = "increasing" if slope > 0 else "decreasing"
+if len(weekly) >= 2:
+    slope, intercept, r, p, _ = stats.linregress(range(len(weekly)), weekly["count"])
+    trend_dir = "increasing" if slope > 0 else "decreasing"
+else:
+    # FIX: avoid linregress crash when less than 2 weekly points exist.
+    slope, p = np.nan, np.nan
+    trend_dir = "insufficient data"
 weekly.to_csv("data/analysis/weekly_volume_trend.csv", index=False)
-print(f"\n4. WEEKLY TREND: {trend_dir} (slope={slope:.1f}, p={p:.4f})")
+if np.isnan(slope):
+    print("\n4. WEEKLY TREND: insufficient data")
+else:
+    print(f"\n4. WEEKLY TREND: {trend_dir} (slope={slope:.1f}, p={p:.4f})")
 
 # ── 5. Top content on spike days ─────────────────────────────────────────────
 top_spike = (
@@ -75,7 +103,11 @@ top_spike = (
     [["id", "text", "date", "engagement_total", "retweet_count", "reply_count"]]
 )
 top_spike.to_csv("data/analysis/top_posts_spike_days.csv", index=False)
-print(f"\n5. Top spike-day post engagement: {top_spike['engagement_total'].iloc[0]:,}")
+if len(top_spike) > 0:
+    print(f"\n5. Top spike-day post engagement: {top_spike['engagement_total'].iloc[0]:,}")
+else:
+    # FIX: avoid iloc crash when spike-day slice is empty.
+    print("\n5. Top spike-day post engagement: insufficient data")
 
 # ── 6. Summary ───────────────────────────────────────────────────────────────
 summary = {
@@ -84,7 +116,7 @@ summary = {
     "peak_spike_tweets": int(spikes["tweet_count"].iloc[0]) if len(spikes) else 0,
     "peak_spike_z_score": round(float(spikes["z_score"].iloc[0]), 2) if len(spikes) else 0,
     "weekly_trend": trend_dir,
-    "trend_p_value": round(p, 4),
+    "trend_p_value": round(p, 4) if not np.isnan(p) else "insufficient data",
 }
 pd.DataFrame([summary]).to_csv("data/analysis/temporal_spike_summary.csv", index=False)
 print("\n=== TEMPORAL SPIKE ANALYSIS COMPLETE ===")

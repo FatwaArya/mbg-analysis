@@ -10,6 +10,21 @@ for _p in ["data/processed/tweets_with_topics.csv",
     if os.path.exists(_p):
         df = pd.read_csv(_p)
         break
+if "df" not in locals():
+    # FIX: emit insufficient-data outputs when no input datasets exist.
+    print("No statistical input datasets found. Writing empty outputs.")
+    pd.DataFrame(columns=["date", "tweet_count"]).to_csv("data/analysis/daily_volume.csv", index=False)
+    pd.DataFrame(columns=["date", "tweet_count"]).to_csv("data/analysis/weekly_volume.csv", index=False)
+    pd.DataFrame(columns=["hour", "tweet_count"]).to_csv("data/analysis/hourly_pattern.csv", index=False)
+    pd.DataFrame(columns=["id", "text", "engagement_total", "favorite_count",
+                          "retweet_count", "reply_count", "date", "detected_lang"]).to_csv(
+        "data/analysis/top_posts.csv", index=False
+    )
+    # FIX: continue with an empty frame instead of raising.
+    df = pd.DataFrame(columns=[
+        "id", "text", "engagement_total", "favorite_count", "retweet_count", "reply_count",
+        "date", "created_at", "detected_lang", "user_id", "scrape_tab", "hour", "query_raw"
+    ])
 df["date"] = pd.to_datetime(df["date"])
 df = df[df["date"] >= "2025-01-01"]
 df["created_at"] = pd.to_datetime(df["created_at"])
@@ -30,9 +45,14 @@ daily_volume = df.groupby("date").size().reset_index(name="tweet_count")
 weekly_volume = df.resample("W", on="date").size().reset_index(name="tweet_count")
 daily_volume.to_csv("data/analysis/daily_volume.csv", index=False)
 weekly_volume.to_csv("data/analysis/weekly_volume.csv", index=False)
-peak = daily_volume.loc[daily_volume["tweet_count"].idxmax()]
-print(f"2. Peak day    : {peak['date'].date()}")
-print(f"   Peak count  : {peak['tweet_count']:,}")
+if len(daily_volume) > 0:
+    peak = daily_volume.loc[daily_volume["tweet_count"].idxmax()]
+    print(f"2. Peak day    : {peak['date'].date()}")
+    print(f"   Peak count  : {peak['tweet_count']:,}")
+else:
+    # FIX: avoid idxmax crash on empty daily aggregates.
+    print("2. Peak day    : insufficient data")
+    print("   Peak count  : insufficient data")
 print(f"   Avg/day     : {daily_volume['tweet_count'].mean():.0f}")
 print()
 
@@ -46,7 +66,11 @@ print()
 # 4. HOURLY POSTING PATTERN
 hourly = df.groupby("hour").size().reset_index(name="tweet_count")
 hourly.to_csv("data/analysis/hourly_pattern.csv", index=False)
-print(f"4. Peak hour : {hourly.loc[hourly['tweet_count'].idxmax(), 'hour']}:00")
+if len(hourly) > 0:
+    print(f"4. Peak hour : {hourly.loc[hourly['tweet_count'].idxmax(), 'hour']}:00")
+else:
+    # FIX: avoid idxmax crash on empty hourly aggregates.
+    print("4. Peak hour : insufficient data")
 print()
 
 # 5. QUERY EFFECTIVENESS
@@ -66,7 +90,11 @@ top_posts = df.nlargest(20, "engagement_total")[
      "retweet_count", "reply_count", "date", "detected_lang"]
 ]
 top_posts.to_csv("data/analysis/top_posts.csv", index=False)
-print(f"6. Top post engagement : {top_posts['engagement_total'].iloc[0]:,}")
+if len(top_posts) > 0:
+    print(f"6. Top post engagement : {top_posts['engagement_total'].iloc[0]:,}")
+else:
+    # FIX: avoid iloc crash on empty top posts.
+    print("6. Top post engagement : insufficient data")
 print()
 
 # 7. ENGAGEMENT CORRELATION

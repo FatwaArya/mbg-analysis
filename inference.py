@@ -10,9 +10,8 @@ Usage:
     python inference.py
 
 Environment:
-    - Model path: /opt/mbg/model (fine-tuned BertForSequenceClassification)
-    - Input data: /opt/mbg/data/raw/*.csv
-    - Output: /opt/mbg/data/output/
+    - Runtime config: runtime.py (RUNTIME_MODE=droplet|colab)
+    - Model path and data paths come from shared runtime config
 
 Output Files:
     - tweets_relevant.csv: Tweets classified as RELEVANT
@@ -29,12 +28,13 @@ import pandas as pd
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from tqdm import tqdm
+from runtime import RUNTIME
 
 # ── Configuration ────────────────────────────────────────────────────────────
-MODEL_PATH = "/opt/mbg/model"
-DATA_DIR = "/opt/mbg/data/raw"
-OUTPUT_DIR = "/opt/mbg/data/output"
-BATCH_SIZE = 64  # Process 64 tweets at a time for efficiency
+MODEL_PATH = RUNTIME.model_dir  # FIX: centralize runtime model path.
+DATA_DIR = RUNTIME.raw_dir  # FIX: centralize runtime input path.
+OUTPUT_DIR = RUNTIME.output_dir  # FIX: centralize runtime output path.
+BATCH_SIZE = RUNTIME.inference_batch_size  # FIX: runtime-specific batch size.
 MAX_LENGTH = 128  # Maximum token length for BERT input
 
 # ── Setup ────────────────────────────────────────────────────────────────────
@@ -54,6 +54,7 @@ def load_model():
     print("Loading model...")
     tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
     model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
+    model.to(RUNTIME.device)  # FIX: move model to selected runtime device.
     model.eval()  # Set to evaluation mode (disables dropout)
     return tokenizer, model
 
@@ -80,13 +81,15 @@ def predict_batch(texts: list[str], tokenizer, model) -> list[dict]:
         max_length=MAX_LENGTH,
         return_tensors="pt"
     )
+    # FIX: move tokenized tensors to selected runtime device for GPU inference.
+    inputs = {k: v.to(RUNTIME.device) for k, v in inputs.items()}
     
     # Run inference without gradient computation (faster)
     with torch.no_grad():
         logits = model(**inputs).logits
         probs = torch.softmax(logits, dim=-1)
-        preds = torch.argmax(probs, dim=-1).tolist()
-        scores = probs.max(dim=-1).values.tolist()
+        preds = torch.argmax(probs, dim=-1).cpu().tolist()
+        scores = probs.max(dim=-1).values.cpu().tolist()
     
     # Format results
     return [

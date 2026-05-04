@@ -13,12 +13,19 @@ print("=== COMBINED ANALYSIS ===\n")
 # 1. Do negative posts spread more?
 neg = df[df["sentiment_normalized"] == "negative"]["retweet_count"]
 pos = df[df["sentiment_normalized"] == "positive"]["retweet_count"]
-_, p_val = stats.mannwhitneyu(neg, pos, alternative="two-sided")
+p_val = np.nan
+if len(neg) > 0 and len(pos) > 0:
+    _, p_val = stats.mannwhitneyu(neg, pos, alternative="two-sided")
+# FIX: guard mannwhitneyu against empty samples.
 print("1. NEGATIVE AMPLIFICATION TEST")
 print(f"   Avg RT negative : {neg.mean():.1f}")
 print(f"   Avg RT positive : {pos.mean():.1f}")
-print(f"   p-value         : {p_val:.4f}")
-print(f"   Significant     : {p_val < 0.05}")
+if np.isnan(p_val):
+    print("   p-value         : insufficient data")
+    print("   Significant     : insufficient data")
+else:
+    print(f"   p-value         : {p_val:.4f}")
+    print(f"   Significant     : {p_val < 0.05}")
 print()
 
 # 2. Sentiment shift over time
@@ -26,8 +33,14 @@ monthly = (df.groupby([df["date"].dt.to_period("M").astype(str), "sentiment_norm
              .size().unstack(fill_value=0))
 monthly = monthly.div(monthly.sum(axis=1), axis=0) * 100
 monthly.to_csv("data/analysis/monthly_sentiment_shift.csv")
-first_pos = monthly["positive"].iloc[0] if "positive" in monthly else 0
-last_pos = monthly["positive"].iloc[-1] if "positive" in monthly else 0
+if len(monthly) > 0:
+    monthly = monthly.reindex(columns=["negative", "neutral", "positive"], fill_value=0)
+    first_pos = monthly["positive"].iloc[0]
+    last_pos = monthly["positive"].iloc[-1]
+else:
+    # FIX: avoid iloc crashes on empty monthly aggregates.
+    first_pos = 0
+    last_pos = 0
 print(f"2. SENTIMENT TREND")
 print(f"   First month +ve : {first_pos:.1f}%")
 print(f"   Last month +ve  : {last_pos:.1f}%")
@@ -54,13 +67,13 @@ print()
 # 5. Paper statistics summary
 summary = {
     "total_tweets": len(df),
-    "date_from": str(df["date"].min().date()),
-    "date_to": str(df["date"].max().date()),
+    "date_from": str(df["date"].min().date()) if len(df) else "N/A",
+    "date_to": str(df["date"].max().date()) if len(df) else "N/A",
     "pct_positive": round((df["sentiment_normalized"] == "positive").mean() * 100, 1),
     "pct_negative": round((df["sentiment_normalized"] == "negative").mean() * 100, 1),
     "pct_neutral": round((df["sentiment_normalized"] == "neutral").mean() * 100, 1),
     "n_topics": int(df["topic_id"].nunique()) if "topic_id" in df.columns else 0,
-    "negative_amplification_significant": bool(p_val < 0.05),
+    "negative_amplification_significant": bool((p_val < 0.05) if not np.isnan(p_val) else False),
     "sentiment_trend": "improving" if last_pos > first_pos else "declining"
 }
 pd.DataFrame([summary]).to_csv("data/analysis/paper_statistics_summary.csv", index=False)

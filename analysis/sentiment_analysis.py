@@ -16,6 +16,8 @@ print()
 # 2. Sentiment over time daily
 sent_time = df.groupby(["date", "sentiment_normalized"]).size().unstack(fill_value=0)
 sent_time_pct = sent_time.div(sent_time.sum(axis=1), axis=0) * 100
+sent_time_pct = sent_time_pct.reindex(columns=["negative", "neutral", "positive"], fill_value=0)
+# FIX: keep stable sentiment columns even when one class is absent.
 sent_time_pct = sent_time_pct.reset_index()
 sent_time_pct.columns = ["date", "negative", "neutral", "positive"]
 sent_time_pct.to_csv("data/analysis/sentiment_over_time.csv", index=False)

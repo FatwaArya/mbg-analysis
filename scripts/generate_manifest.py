@@ -6,6 +6,10 @@ import subprocess
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # FIX: allow importing runtime from repo root.
+from runtime import RUNTIME
 
 def get_file_metadata(filepath):
     """Compute file metadata: rows, size, MD5 hash"""
@@ -32,7 +36,7 @@ def get_file_metadata(filepath):
         "md5": md5.hexdigest()[:8]
     }
 
-def extract_stats(data_dir="/opt/mbg/data"):
+def extract_stats(data_dir=RUNTIME.data_dir):
     """Extract statistics from output files"""
     stats = {}
     
@@ -59,8 +63,9 @@ def extract_stats(data_dir="/opt/mbg/data"):
     topics_file = f"{data_dir}/output/tweets_with_topics.csv"
     if os.path.exists(topics_file):
         df = pd.read_csv(topics_file)
-        if "topic" in df.columns:
-            stats["outliers"] = (df["topic"] == -1).sum()
+        if "topic_id" in df.columns:
+            # FIX: outlier topic column is topic_id, not topic.
+            stats["outliers"] = (df["topic_id"] == -1).sum()
     
     return stats
 
@@ -75,7 +80,7 @@ def get_git_commit():
     except:
         return "unknown"
 
-def generate_manifest(run_id, duration_seconds, data_dir="/opt/mbg/data", status="success"):
+def generate_manifest(run_id, duration_seconds, data_dir=RUNTIME.data_dir, status="success"):
     """Build complete manifest JSON"""
     
     files = {}
@@ -114,7 +119,7 @@ if __name__ == "__main__":
     manifest = generate_manifest(run_id, duration)
     
     # Save to output directory
-    output_path = "/opt/mbg/data/output/metadata.json"
+    output_path = f"{RUNTIME.output_dir}/metadata.json"  # FIX: centralize runtime output path.
     with open(output_path, 'w') as f:
         json.dump(manifest, f, indent=2)
     

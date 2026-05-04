@@ -5,9 +5,13 @@ import sys
 import os
 import time
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # FIX: allow importing runtime from repo root.
+from runtime import RUNTIME
 
 BUCKET = "s3://mbg-scraper-network-20260419071440"
-DATA_DIR = "/opt/mbg/data"
+DATA_DIR = RUNTIME.data_dir  # FIX: centralize runtime data path.
 MAX_RETRIES = 3
 RETRY_DELAY = 5  # seconds
 
