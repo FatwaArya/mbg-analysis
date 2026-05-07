@@ -131,7 +131,7 @@ def load_corpus(corpus_path: str) -> pd.DataFrame:
     Returns:
         DataFrame with cleaned data ready for inference
     """
-    df = pd.read_csv(corpus_path, low_memory=False)
+    df = pd.read_csv(corpus_path, low_memory=False, dtype={"id": str})
     print(f"Total tweets: {len(df):,}")
     
     # Identify text column (usually named "text" or second column)
