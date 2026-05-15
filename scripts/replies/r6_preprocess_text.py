@@ -2,6 +2,7 @@
 """R6: Text preprocessing"""
 import pandas as pd
 import re, sys, spacy
+from tqdm import tqdm
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 
@@ -41,12 +42,16 @@ def clean_topic_en(text):
     text = re.sub(r"#\w+", "", text)
     text = re.sub(r"[^\w\s]", " ", text)
     text = re.sub(r"\d+", "", text).lower()
-    doc = nlp(text[:100000])
+    doc = nlp(text[:5000])
     words = [t.lemma_ for t in doc if not t.is_stop and not t.is_punct and not t.is_space and len(t.lemma_) > 2 and t.lemma_.isalpha()]
     return " ".join(words).strip()
 
-df["text_clean_light"] = df["text"].apply(clean_light)
-df["text_clean_topic"] = df.apply(lambda r: clean_topic_en(r["text"]) if r.get("detected_lang") == "en" else clean_topic_id(r["text"]), axis=1)
+df["text_clean_light"] = [clean_light(t) for t in tqdm(df["text"], desc="Light cleaning")]
+
+df["text_clean_topic"] = [
+    clean_topic_en(r["text"]) if r.get("detected_lang") == "en" else clean_topic_id(r["text"])
+    for _, r in tqdm(df.iterrows(), total=len(df), desc="Topic cleaning")
+]
 
 empty_mask = df["text_clean_topic"].str.strip() == ""
 if empty_mask.sum() > 0:
