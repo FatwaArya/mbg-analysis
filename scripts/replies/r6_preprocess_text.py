@@ -16,6 +16,12 @@ id_stopwords.update({"yg","dgn","utk","krn","tdk","jd","tp","sy","gw","gue","lo"
 nlp = spacy.load("en_core_web_sm", disable=["parser","ner"])
 
 df = pd.read_csv(INPUT)
+print(f"Input: {len(df)} rows")
+
+lang_series = df.get("detected_lang", pd.Series(index=df.index, data="id")).fillna("id").astype(str)
+en_mask = lang_series == "en"
+id_mask = ~en_mask
+print(f"Indonesian: {id_mask.sum()} | English: {en_mask.sum()}")
 
 def remove_noise(text):
     text = re.sub(r"http\S+", "", str(text))
@@ -37,21 +43,33 @@ def clean_topic_id(text):
     words = [w for w in text.split() if w not in id_stopwords and len(w) > 2]
     return " ".join(words).strip()
 
-def clean_topic_en(text):
-    text = remove_noise(text)
-    text = re.sub(r"#\w+", "", text)
-    text = re.sub(r"[^\w\s]", " ", text)
-    text = re.sub(r"\d+", "", text).lower()
-    doc = nlp(text[:5000])
-    words = [t.lemma_ for t in doc if not t.is_stop and not t.is_punct and not t.is_space and len(t.lemma_) > 2 and t.lemma_.isalpha()]
-    return " ".join(words).strip()
-
+print("Step 1/3: Light cleaning...")
 df["text_clean_light"] = [clean_light(t) for t in tqdm(df["text"], desc="Light cleaning")]
 
-df["text_clean_topic"] = [
-    clean_topic_en(r["text"]) if r.get("detected_lang") == "en" else clean_topic_id(r["text"])
-    for _, r in tqdm(df.iterrows(), total=len(df), desc="Topic cleaning")
+print("Step 2/3: Indonesian topic cleaning (Sastrawi)...")
+df.loc[id_mask, "text_clean_topic"] = [
+    clean_topic_id(t) for t in tqdm(df.loc[id_mask, "text"].astype(str).tolist(), desc="ID topic")
 ]
+
+print("Step 3/3: English topic cleaning (spaCy batched)...")
+if en_mask.any():
+    en_prepped = (
+        df.loc[en_mask, "text"]
+        .astype(str)
+        .apply(remove_noise)
+        .str.replace(r"#\w+", "", regex=True)
+        .str.replace(r"[^\w\s]", " ", regex=True)
+        .str.replace(r"\d+", "", regex=True)
+        .str.lower()
+        .str.slice(0, 100000)
+    )
+    en_cleaned = []
+    for doc in tqdm(nlp.pipe(en_prepped.tolist(), batch_size=50), total=en_prepped.count(), desc="EN topic"):
+        words = [t.lemma_ for t in doc if not t.is_stop and not t.is_punct and not t.is_space and len(t.lemma_) > 2 and t.lemma_.isalpha()]
+        en_cleaned.append(" ".join(words).strip())
+    df.loc[en_mask, "text_clean_topic"] = en_cleaned
+else:
+    df.loc[id_mask, "text_clean_topic"] = df.loc[id_mask, "text_clean_topic"]
 
 empty_mask = df["text_clean_topic"].str.strip() == ""
 if empty_mask.sum() > 0:
@@ -61,5 +79,5 @@ if empty_mask.sum() > 0:
     df = df[~empty_mask].copy()
 
 df.to_csv(OUTPUT, index=False)
-print(f"Preprocessed {len(df)} rows → {OUTPUT}")
+print(f"\nPreprocessed {len(df)} rows → {OUTPUT}")
 print(f"Rejected {empty_mask.sum()} empty rows")
