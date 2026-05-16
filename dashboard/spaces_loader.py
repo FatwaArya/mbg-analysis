@@ -199,6 +199,15 @@ def load_reply_dataset(name):
         "reply_sentiment_trend": "reply_sentiment_trend.csv",
         "reply_hourly_pattern": "reply_hourly_pattern.csv",
         "reply_weekly_pattern": "reply_weekly_pattern.csv",
+        "user_bot_scores": "user_bot_scores.csv",
+        "flagged_bots": "flagged_bots.csv",
+        "reply_network_edges": "reply_network_edges.csv",
+        "user_centrality": "user_centrality.csv",
+        "network_stats": "network_stats.csv",
+        "thread_depth_stats": "thread_depth_stats.csv",
+        "parent_conversation_stats": "parent_conversation_stats.csv",
+        "user_influence_scores": "user_influence_scores.csv",
+        "sentiment_consistency": "sentiment_consistency.csv",
     }
 
     if name not in filename_map:

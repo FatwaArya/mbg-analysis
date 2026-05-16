@@ -111,9 +111,9 @@ if cont_vs_eng is not None and len(cont_vs_eng) > 0:
         st.plotly_chart(fig, use_container_width=True)
 
     with col_e2:
-        fig = px.bar(cont_vs_eng, x="controversy_bin", y="avg_replies",
-                     color="avg_replies", color_continuous_scale="Oranges",
-                     labels={"controversy_bin":"Controversy Range","avg_replies":"Avg Replies"})
+        fig = px.bar(cont_vs_eng, x="controversy_bin", y="avg_favorites",
+                     color="avg_favorites", color_continuous_scale="Oranges",
+                     labels={"controversy_bin":"Controversy Range","avg_favorites":"Avg Favorites"})
         fig.update_layout(height=300, margin=dict(t=10,b=10), coloraxis_showscale=False)
         st.plotly_chart(fig, use_container_width=True)
 
