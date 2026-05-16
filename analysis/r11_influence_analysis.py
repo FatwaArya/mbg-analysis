@@ -13,7 +13,7 @@ t0 = time.time()
 df = pd.read_csv(f"{ANALYSIS_DIR}/replies_with_sentiment.csv",
                  usecols=["id", "user_screen_name", "user_id", "parent_id",
                           "favorite_count", "retweet_count", "reply_count",
-                          "sentiment_label", "topic_id", "created_at"])
+                          "sentiment_label", "created_at"])
 df["created_at"] = pd.to_datetime(df["created_at"])
 df["id"] = df["id"].astype(str)
 df["parent_id"] = df["parent_id"].astype(str)
