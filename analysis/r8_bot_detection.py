@@ -9,7 +9,7 @@ import time
 
 ANALYSIS_DIR = "/opt/mbg/data/analysis"
 OUTPUT_DIR = ANALYSIS_DIR
-BOT_THRESHOLD = 0.6
+BOT_THRESHOLD = 0.50
 
 print("Loading data...")
 t0 = time.time()

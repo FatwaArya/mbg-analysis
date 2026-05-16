@@ -29,7 +29,7 @@ c1, c2, c3, c4 = st.columns(4)
 c1.metric("Total Users Analyzed", f"{total_users:,}")
 c2.metric("Flagged as Bots", f"{total_flagged:,}", f"{total_flagged/total_users*100:.1f}%")
 c3.metric("Avg Bot Score", f"{avg_score:.3f}")
-c4.metric("Threshold", "0.600")
+c4.metric("Threshold", "0.500")
 
 st.markdown("---")
 
@@ -40,7 +40,7 @@ fig_hist = px.histogram(
     labels={"bot_score": "Bot Score", "count": "Number of Users"},
     color_discrete_sequence=["#3498db"]
 )
-fig_hist.add_vline(x=0.6, line_dash="dash", line_color="red", annotation_text="Threshold (0.6)")
+fig_hist.add_vline(x=0.5, line_dash="dash", line_color="red", annotation_text="Threshold (0.5)")
 fig_hist.update_layout(bargap=0.05, showlegend=False)
 st.plotly_chart(fig_hist, use_container_width=True)
 

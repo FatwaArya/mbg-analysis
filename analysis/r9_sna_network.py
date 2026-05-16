@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""SNA — Reply Network Analysis with centrality metrics."""
+"""SNA — Reply Network Analysis with centrality metrics (optimized for large graphs)."""
 import pandas as pd
 import numpy as np
 import networkx as nx
-from collections import Counter
 import time
 
 ANALYSIS_DIR = "/opt/mbg/data/analysis"
 OUTPUT_DIR = ANALYSIS_DIR
+MIN_INTERACTIONS = 2
 
 print("Loading data...")
 t0 = time.time()
@@ -18,43 +18,54 @@ replies = pd.read_csv(f"{ANALYSIS_DIR}/replies_with_sentiment.csv",
 replies["id"] = replies["id"].astype(str)
 replies["parent_id"] = replies["parent_id"].astype(str)
 replies["user"] = replies["user_screen_name"].fillna(replies["user_id"].astype(str))
+print(f"  Replies: {len(replies):,} ({time.time()-t0:.1f}s)")
 
-corpus = pd.read_csv(f"{ANALYSIS_DIR}/corpus_combined.csv",
-                     usecols=["id", "user_screen_name", "user_id", "parent_id", "tweet_type"],
-                     dtype={"id": str, "user_id": str, "parent_id": str})
-corpus["user"] = corpus["user_screen_name"].fillna(corpus["user_id"].astype(str))
-
-print(f"  Replies: {len(replies):,}, Corpus: {len(corpus):,} ({time.time()-t0:.1f}s)")
-
-# ── Build Network: reply_user → parent_user ─────────────────────────
+# ── Build Network: reply_user → parent_id ───────────────────────────
 print("\n1. Building reply network...")
-parent_users = corpus.set_index("id")["user"]
-replies["parent_user"] = replies["parent_id"].map(parent_users)
-replies["parent_user"] = replies["parent_user"].fillna("unknown")
+replies["parent_user"] = replies["parent_id"].fillna("unknown")
 
-edges = replies.groupby(["user", "parent_user"]).size().reset_index(name="weight")
-edges = edges[edges["user"] != edges["parent_user"]]
-edges = edges[edges["parent_user"] != "unknown"]
+edges_df = replies.groupby(["user", "parent_user"]).size().reset_index(name="weight")
+edges_df = edges_df[edges_df["user"] != edges_df["parent_user"]]
+edges_df = edges_df[edges_df["parent_user"] != "unknown"]
 
-G = nx.DiGraph()
-for _, row in edges.iterrows():
-    G.add_edge(row["user"], row["parent_user"], weight=row["weight"])
+print(f"  Raw edges: {len(edges_df):,}")
 
-print(f"  Nodes: {G.number_of_nodes():,}")
-print(f"  Edges: {G.number_of_edges():,}")
-
-# ── Centrality Metrics ──────────────────────────────────────────────
+# ── Centrality Metrics (computed from edges directly for speed) ─────
 print("\n2. Computing centrality metrics...")
-print("   In-degree centrality...")
-in_degree = dict(G.in_degree(weight="weight"))
-print("   Out-degree centrality...")
-out_degree = dict(G.out_degree(weight="weight"))
-print("   Betweenness centrality...")
-betweenness = nx.betweenness_centrality(G, weight="weight", k=min(5000, G.number_of_nodes()))
-print("   PageRank...")
-pagerank = nx.pagerank(G, weight="weight")
+in_degree = edges_df.groupby("parent_user")["weight"].sum().to_dict()
+out_degree = edges_df.groupby("user")["weight"].sum().to_dict()
 
 all_users = set(in_degree.keys()) | set(out_degree.keys())
+print(f"  Total unique nodes: {len(all_users):,}")
+
+# Build graph for PageRank and betweenness (filter to active users)
+active_users = set()
+for u, d in in_degree.items():
+    if d >= MIN_INTERACTIONS:
+        active_users.add(u)
+for u, d in out_degree.items():
+    if d >= MIN_INTERACTIONS:
+        active_users.add(u)
+
+active_edges = edges_df[(edges_df["user"].isin(active_users)) & (edges_df["parent_user"].isin(active_users))]
+print(f"  Active users (>= {MIN_INTERACTIONS} interactions): {len(active_users):,}")
+print(f"  Active edges: {len(active_edges):,}")
+
+G = nx.DiGraph()
+for _, row in active_edges.iterrows():
+    G.add_edge(row["user"], row["parent_user"], weight=row["weight"])
+
+print(f"  Graph nodes: {G.number_of_nodes():,}")
+print(f"  Graph edges: {G.number_of_edges():,}")
+
+print("   PageRank (active subgraph)...")
+pagerank = nx.pagerank(G, weight="weight", max_iter=100, tol=1e-06)
+print("   Betweenness centrality (sampled)...")
+sample_k = min(500, G.number_of_nodes())
+betweenness = nx.betweenness_centrality(G, weight="weight", k=sample_k)
+
+# ── Build Full Centrality Table ─────────────────────────────────────
+print("\n3. Building centrality table...")
 centrality = pd.DataFrame({
     "user": list(all_users),
     "in_degree": [in_degree.get(u, 0) for u in all_users],
@@ -62,14 +73,14 @@ centrality = pd.DataFrame({
     "betweenness": [betweenness.get(u, 0) for u in all_users],
     "pagerank": [pagerank.get(u, 0) for u in all_users],
 })
-centrality["in_degree_centrality"] = centrality["in_degree"] / max(G.number_of_nodes() - 1, 1)
-centrality["out_degree_centrality"] = centrality["out_degree"] / max(G.number_of_nodes() - 1, 1)
+centrality["in_degree_centrality"] = centrality["in_degree"] / max(len(all_users) - 1, 1)
+centrality["out_degree_centrality"] = centrality["out_degree"] / max(len(all_users) - 1, 1)
 
 # ── Network Stats ───────────────────────────────────────────────────
-print("\n3. Computing network statistics...")
-components = nx.weakly_connected_components(G)
+print("\n4. Computing network statistics...")
+components = list(nx.weakly_connected_components(G))
 component_sizes = [len(c) for c in components]
-largest_component = max(component_sizes)
+largest_component = max(component_sizes) if component_sizes else 0
 
 density = nx.density(G)
 avg_clustering = nx.average_clustering(G.to_undirected())
@@ -89,8 +100,8 @@ network_stats = pd.DataFrame([{
 
 # ── Save Outputs ────────────────────────────────────────────────────
 print(f"\nSaving outputs...")
-edges.to_csv(f"{OUTPUT_DIR}/reply_network_edges.csv", index=False)
-print(f"  Saved → reply_network_edges.csv ({len(edges):,} edges)")
+edges_df.to_csv(f"{OUTPUT_DIR}/reply_network_edges.csv", index=False)
+print(f"  Saved → reply_network_edges.csv ({len(edges_df):,} edges)")
 
 centrality.to_csv(f"{OUTPUT_DIR}/user_centrality.csv", index=False)
 print(f"  Saved → user_centrality.csv ({len(centrality):,} users)")
