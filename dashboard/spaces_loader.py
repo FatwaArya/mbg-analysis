@@ -208,6 +208,10 @@ def load_reply_dataset(name):
         "parent_conversation_stats": "parent_conversation_stats.csv",
         "user_influence_scores": "user_influence_scores.csv",
         "sentiment_consistency": "sentiment_consistency.csv",
+        "co_reply_edges": "co_reply_edges.csv",
+        "co_reply_nodes": "co_reply_nodes.csv",
+        "co_reply_network_stats": "co_reply_network_stats.csv",
+        "co_reply_communities": "co_reply_communities.csv",
     }
 
     if name not in filename_map:
