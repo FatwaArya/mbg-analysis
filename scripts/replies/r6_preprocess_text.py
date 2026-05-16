@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""R6: Text preprocessing"""
+"""R6: Text preprocessing for replies.
+Indonesian → stopwords removal (no stemming — too slow for 400K rows)
+English    → spaCy lemmatizer (batched via nlp.pipe)
+"""
 import pandas as pd
 import re, sys, spacy
 from tqdm import tqdm
-from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 
 INPUT = sys.argv[1] if len(sys.argv) > 1 else "/opt/mbg/data/consolidated/replies_sample_tagged.csv"
 OUTPUT = INPUT.replace("_tagged.csv", "_preprocessed.csv")
 REJECTED = INPUT.replace("_tagged.csv", "_preprocess_rejected.csv")
 
-stemmer = StemmerFactory().create_stemmer()
 id_stopwords = set(StopWordRemoverFactory().get_stop_words())
 id_stopwords.update({"yg","dgn","utk","krn","tdk","jd","tp","sy","gw","gue","lo","lu","nih","deh","sih","dong","wkwk","haha","hehe","lol","btw"})
 nlp = spacy.load("en_core_web_sm", disable=["parser","ner"])
@@ -35,18 +36,18 @@ def clean_light(text):
     return re.sub(r"#(\w+)", r"\1", text).strip()
 
 def clean_topic_id(text):
+    """Fast ID topic cleaning — no stemming, just noise removal + stopwords."""
     text = remove_noise(text)
     text = re.sub(r"#\w+", "", text)
     text = re.sub(r"[^\w\s]", " ", text)
     text = re.sub(r"\d+", "", text).lower()
-    text = stemmer.stem(text)
     words = [w for w in text.split() if w not in id_stopwords and len(w) > 2]
     return " ".join(words).strip()
 
 print("Step 1/3: Light cleaning...")
 df["text_clean_light"] = [clean_light(t) for t in tqdm(df["text"], desc="Light cleaning")]
 
-print("Step 2/3: Indonesian topic cleaning (Sastrawi)...")
+print("Step 2/3: Indonesian topic cleaning (stopwords only, no stemming)...")
 df.loc[id_mask, "text_clean_topic"] = [
     clean_topic_id(t) for t in tqdm(df.loc[id_mask, "text"].astype(str).tolist(), desc="ID topic")
 ]
