@@ -13,10 +13,10 @@ df = pd.read_csv(INPUT)
 print(f"Input: {len(df)} replies")
 
 print("Loading Indonesian sentiment model...")
-sentiment_id = pipeline("text-classification", model="w11wo/indonesian-roberta-base-sentiment-classifier", device=-1, batch_size=BATCH_SIZE)
+sentiment_id = pipeline("text-classification", model="w11wo/indonesian-roberta-base-sentiment-classifier", device=0, batch_size=BATCH_SIZE)
 
 print("Loading English sentiment model...")
-sentiment_en = pipeline("text-classification", model="cardiffnlp/twitter-roberta-base-sentiment-latest", device=-1, batch_size=BATCH_SIZE)
+sentiment_en = pipeline("text-classification", model="cardiffnlp/twitter-roberta-base-sentiment-latest", device=0, batch_size=BATCH_SIZE)
 
 ID_MAP = {"positive": "positive", "negative": "negative", "neutral": "neutral", "pos": "positive", "neg": "negative", "neu": "neutral"}
 EN_MAP = {"positive": "positive", "negative": "negative", "neutral": "neutral", "label_0": "negative", "label_1": "neutral", "label_2": "positive"}
