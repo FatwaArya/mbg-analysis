@@ -166,7 +166,7 @@ if talk_amplify is not None and len(talk_amplify) > 0:
     with col1:
         fig_hist = px.histogram(talk_amplify, x="talk_amplify_ratio", nbins=50,
                                 labels={"talk_amplify_ratio": "Reply / (RT+1)"},
-                                color_dissequence=["#636EFA"])
+                                 color_discrete_sequence=["#636EFA"])
         fig_hist.update_layout(showlegend=False, height=300, margin=dict(t=10, b=10))
         st.plotly_chart(fig_hist, use_container_width=True)
     with col2:
