@@ -43,80 +43,51 @@ st.markdown("---")
 st.subheader("Network Graph (Force-Directed Layout)")
 st.caption("Nodes = users, Edges = shared parent replies. Colored by community. Larger nodes = more connections.")
 
-top_n = st.slider("Number of nodes to display", 100, 2000, 500, step=100)
-top_users = nodes.nlargest(top_n, "weighted_degree")["user"].tolist()
-sampled_nodes = nodes[nodes["user"].isin(top_users)]
-sampled_edges = edges[(edges["user1"].isin(top_users)) & (edges["user2"].isin(top_users))]
+@st.cache_data
+def load_layout():
+    path = "/opt/mbg/data/analysis/co_reply_layout.csv"
+    if os.path.exists(path):
+        return pd.read_csv(path)
+    return None
 
-comm_colors = px.colors.qualitative.Set3
-comm_map = {c: comm_colors[i % len(comm_colors)] for i, c in enumerate(sampled_nodes["community"].unique())}
-sampled_nodes["color"] = sampled_nodes["community"].map(comm_map)
+layout = load_layout()
 
-np.random.seed(42)
-node_positions = {}
-for _, row in sampled_nodes.iterrows():
-    node_positions[row["user"]] = (np.random.uniform(-1, 1), np.random.uniform(-1, 1))
+if layout is not None and len(layout) > 0:
+    top_n = st.slider("Number of nodes to display", 100, len(layout), 500, step=100)
+    display = layout.nlargest(top_n, "weighted_degree")
 
-for _ in range(50):
-    forces = {u: [0.0, 0.0] for u in top_users}
-    users_list = list(node_positions.keys())
-    for i in range(len(users_list)):
-        for j in range(i + 1, len(users_list)):
-            u1, u2 = users_list[i], users_list[j]
-            x1, y1 = node_positions[u1]
-            x2, y2 = node_positions[u2]
-            dx, dy = x2 - x1, y2 - y1
-            dist = max(np.sqrt(dx**2 + dy**2), 0.01)
-            force = 0.5 / dist
-            forces[u1][0] -= force * dx
-            forces[u1][1] -= force * dy
-            forces[u2][0] += force * dx
-            forces[u2][1] += force * dy
-    for _, edge in sampled_edges.head(5000).iterrows():
-        u1, u2 = edge["user1"], edge["user2"]
-        if u1 in node_positions and u2 in node_positions:
-            x1, y1 = node_positions[u1]
-            x2, y2 = node_positions[u2]
-            dx, dy = x2 - x1, y2 - y1
-            dist = max(np.sqrt(dx**2 + dy**2), 0.01)
-            force = dist * 0.01 * min(edge["shared_parents"], 10)
-            forces[u1][0] += force * dx
-            forces[u1][1] += force * dy
-            forces[u2][0] -= force * dx
-            forces[u2][1] -= force * dy
-    for u in top_users:
-        node_positions[u] = (
-            node_positions[u][0] + forces[u][0] * 0.1,
-            node_positions[u][1] + forces[u][1] * 0.1
-        )
+    sampled_edges = edges[(edges["user1"].isin(display["user"])) & (edges["user2"].isin(display["user"]))]
+    sampled_edges = sampled_edges.head(3000)
 
-edge_x, edge_y = [], []
-for _, edge in sampled_edges.head(5000).iterrows():
-    x0, y0 = node_positions.get(edge["user1"], (0, 0))
-    x1, y1 = node_positions.get(edge["user2"], (0, 0))
-    edge_x.extend([x0, x1, None])
-    edge_y.extend([y0, y1, None])
+    edge_x, edge_y = [], []
+    pos_map = dict(zip(display["user"], zip(display["x"], display["y"])))
+    for _, edge in sampled_edges.iterrows():
+        x0, y0 = pos_map.get(edge["user1"], (0, 0))
+        x1, y1 = pos_map.get(edge["user2"], (0, 0))
+        edge_x.extend([x0, x1, None])
+        edge_y.extend([y0, y1, None])
 
-node_x = [node_positions[u][0] for u in top_users]
-node_y = [node_positions[u][1] for u in top_users]
-node_colors = [sampled_nodes[sampled_nodes["user"] == u]["color"].values[0] for u in top_users]
-node_sizes = [sampled_nodes[sampled_nodes["user"] == u]["weighted_degree"].values[0] for u in top_users]
-node_sizes = [max(5, min(s / 5, 30)) for s in node_sizes]
-node_texts = [f"{u}<br>Degree: {sampled_nodes[sampled_nodes['user']==u]['weighted_degree'].values[0]:.0f}<br>Community: {sampled_nodes[sampled_nodes['user']==u]['community'].values[0]}" for u in top_users]
+    node_x = display["x"].tolist()
+    node_y = display["y"].tolist()
+    node_colors = display["color"].tolist()
+    node_sizes = [max(5, min(s / 5, 30)) for s in display["weighted_degree"]]
+    node_texts = [f"{u}<br>Degree: {d:.0f}<br>Community: {c}" for u, d, c in zip(display["user"], display["weighted_degree"], display["community"])]
 
-fig_net = go.Figure()
-fig_net.add_trace(go.Scatter(x=edge_x, y=edge_y, mode="lines",
-    line=dict(width=0.5, color="#888"), hoverinfo="none", showlegend=False))
-fig_net.add_trace(go.Scatter(x=node_x, y=node_y, mode="markers",
-    marker=dict(size=node_sizes, color=node_colors, line=dict(width=0.5, color="white")),
-    text=node_texts, hoverinfo="text", showlegend=False))
-fig_net.update_layout(
-    hovermode="closest", margin=dict(b=0, l=0, r=0, t=0),
-    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-    plot_bgcolor="rgba(0,0,0,0)", height=600
-)
-st.plotly_chart(fig_net, use_container_width=True)
+    fig_net = go.Figure()
+    fig_net.add_trace(go.Scatter(x=edge_x, y=edge_y, mode="lines",
+        line=dict(width=0.5, color="#888"), hoverinfo="none", showlegend=False))
+    fig_net.add_trace(go.Scatter(x=node_x, y=node_y, mode="markers",
+        marker=dict(size=node_sizes, color=node_colors, line=dict(width=0.5, color="white")),
+        text=node_texts, hoverinfo="text", showlegend=False))
+    fig_net.update_layout(
+        hovermode="closest", margin=dict(b=0, l=0, r=0, t=0),
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        plot_bgcolor="rgba(0,0,0,0)", height=600
+    )
+    st.plotly_chart(fig_net, use_container_width=True)
+else:
+    st.warning("Pre-computed layout not found. Run `scripts/compute_network_layout.py` on the VPS.")
 
 st.markdown("---")
 
@@ -235,7 +206,14 @@ if selected_user:
 
     ego_node_x = [ego_positions[u][0] for u in ego_nodes["user"]]
     ego_node_y = [ego_positions[u][1] for u in ego_nodes["user"]]
-    ego_node_colors = [ego_nodes[ego_nodes["user"] == u]["color"].values[0] if u in ego_nodes["user"].values else "#e74c3c" for u in ego_nodes["user"]]
+    # Build community color map from layout or nodes
+    if layout is not None:
+        ego_colors_map = dict(zip(layout["community"], layout["color"]))
+    else:
+        comm_colors = px.colors.qualitative.Set3
+        ego_colors_map = {c: comm_colors[i % len(comm_colors)] for i, c in enumerate(ego_nodes["community"].unique())}
+
+    ego_node_colors = [ego_colors_map.get(ego_nodes[ego_nodes["user"] == u]["community"].values[0], "#e74c3c") for u in ego_nodes["user"]]
     ego_node_sizes = [20 if u == selected_user else max(5, ego_nodes[ego_nodes["user"] == u]["weighted_degree"].values[0] / 5) for u in ego_nodes["user"]]
 
     fig_ego = go.Figure()
