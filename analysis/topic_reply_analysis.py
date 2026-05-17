@@ -14,6 +14,14 @@ controversy = pd.read_csv(f"{ANALYSIS_DIR}/reply_controversy_scores.csv")
 
 parents = combined[combined["tweet_type"] == "parent"].copy()
 replies = combined[combined["tweet_type"] == "reply"].copy()
+
+# FIX: topic_id is missing in corpus_combined for parents; load from tweets_with_topics
+topics_df = pd.read_csv("/opt/mbg/data/output/tweets_with_topics.csv", usecols=["id", "topic_id"])
+parents = parents.merge(topics_df, on="id", how="left", suffixes=("", "_y"))
+if "topic_id_y" in parents.columns:
+    parents["topic_id"] = parents["topic_id"].fillna(parents["topic_id_y"])
+    parents.drop(columns=["topic_id_y"], inplace=True)
+
 print(f"  Parents: {len(parents):,} | Replies: {len(replies):,} | Topics: {len(topic_info)}")
 
 # Build parent lookup with string IDs
