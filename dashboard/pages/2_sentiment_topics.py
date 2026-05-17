@@ -97,6 +97,7 @@ if topic_info is not None and df_topics is not None and "sentiment_normalized" i
     ts = df_topics[df_topics["topic_id"].isin(top15)].groupby(["topic_id", "sentiment_normalized"]).size().unstack(fill_value=0)
     ts_pct = ts.div(ts.sum(axis=1), axis=0) * 100
     ts_pct.index = [id_to_name.get(i, str(i)) for i in ts_pct.index]
+    ts_pct.index.name = "topic_id"
     ts_pct = ts_pct.sort_values("negative", ascending=False)
 
     fig3 = px.bar(ts_pct.reset_index().melt(id_vars="topic_id"),
@@ -148,7 +149,7 @@ if reply_topic_dist is not None and len(reply_topic_dist) > 0:
         reply_topic_dist["topic_name"] = reply_topic_dist["topic_id"].astype(str)
 
     heatmap_data = reply_topic_dist.pivot_table(
-        index="topic_name", columns="sentiment_normalized", values="count", fill_value=0
+        index="topic_name", columns="sentiment_normalized", values="reply_count", fill_value=0
     )
     fig_heat = px.imshow(heatmap_data, color_continuous_scale="RdYlGn_r",
                          labels=dict(x="Sentiment", y="Topic", color="Count"), aspect="auto")
@@ -157,14 +158,24 @@ if reply_topic_dist is not None and len(reply_topic_dist) > 0:
 
 st.markdown("---")
 
-st.subheader("Talk vs Amplify by Sentiment")
+st.subheader("Talk vs Amplify Ratio Distribution")
+st.caption("High ratio = more replies than retweets (discussion-driven)")
 
 if talk_amplify is not None and len(talk_amplify) > 0:
-    fig_ta = px.bar(talk_amplify, x="sentiment_normalized", y="talk_amplify_ratio",
-                    color="sentiment_normalized", color_discrete_map=COLORS,
-                    labels={"sentiment_normalized": "Sentiment", "talk_amplify_ratio": "Reply / (RT+1)"})
-    fig_ta.update_layout(showlegend=False, height=300, margin=dict(t=10, b=10))
-    st.plotly_chart(fig_ta, use_container_width=True)
+    col1, col2 = st.columns(2)
+    with col1:
+        fig_hist = px.histogram(talk_amplify, x="talk_amplify_ratio", nbins=50,
+                                labels={"talk_amplify_ratio": "Reply / (RT+1)"},
+                                color_dissequence=["#636EFA"])
+        fig_hist.update_layout(showlegend=False, height=300, margin=dict(t=10, b=10))
+        st.plotly_chart(fig_hist, use_container_width=True)
+    with col2:
+        top = talk_amplify.nlargest(10, "talk_amplify_ratio")
+        fig_top = px.bar(top, x="talk_amplify_ratio", y="parent_id", orientation="h",
+                         labels={"talk_amplify_ratio": "Ratio", "parent_id": "Parent ID"},
+                         color_discrete_sequence=["#EF553B"])
+        fig_top.update_layout(showlegend=False, height=300, margin=dict(t=10, b=10))
+        st.plotly_chart(fig_top, use_container_width=True)
 
 st.markdown("---")
 
