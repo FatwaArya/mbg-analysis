@@ -1,0 +1,2 @@
+total_tweets,date_from,date_to,pct_positive,pct_negative,pct_neutral,n_topics,negative_amplification_significant,sentiment_trend
+107011,2025-01-01,2026-04-17,28.9,40.3,30.8,51,True,declining
